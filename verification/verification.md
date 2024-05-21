@@ -1,6 +1,6 @@
-## Verification of End-to-End Reinforcement Learning-Based Autonomous Driving
+## Verification
 
-This directory is the implementation of the Verification chapter of the Thesis: **Verifiable End-to-End Autonomous Driving**
+This directory is the implementation of the Verification chapter of the Thesis: **Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**
 
 *Note:* Currently, this directory does not contain the training scripts for the conditional GANs. If you are interested in the training scripts, please let me know. The following instructions are for training the controller using the bycicle model. 
 

@@ -1,6 +1,6 @@
-## Verifiable End-to-End Autonomous Driving
+## Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving
 
-Implementation of the Thesis: **Verifiable End-to-End Autonomous Driving**<br>
+Implementation of the Thesis: **Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**<br>
 Xinhang (Owen) Ma<br>
 
 For codes and documentations of the engineering parts of the f1tenth vehicle in a miniature city, please refer to [f1tenth documentation](/assets/F1Tenth_Documentation.pdf) or contact us by email.
@@ -17,8 +17,8 @@ For codes and documentations of the engineering parts of the f1tenth vehicle in 
 
 1. Clone this repository:
     ```Shell
-    git clone https://github.com/xhOwenMa/v-e2e-lane-follow-rl.git
-    cd v-e2e-lane-follow-rl
+    git clone https://github.com/xhOwenMa/v-e2e-rl-ad.git
+    cd v-e2e-rl-ad
     ```
 
 2. Install the required libraries (we use Conda as an example):
