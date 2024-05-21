@@ -14,25 +14,24 @@ from utils import *
 import sys, os
 
 
-# Set the device
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'DEVICE: {DEVICE}')
 
+
 def main(args):
 
-    save_dir = "./log/ppo/imgOnly/f1tenth/ufld/{}".format(args.id)  # Directory to save the models
-    os.makedirs(save_dir, exist_ok=True)  # Create save directory if it doesn't exist
+    save_dir = "./log/ppo/imgOnly/f1tenth/ufld/{}".format(args.id)
+    os.makedirs(save_dir, exist_ok=True)
 
     # Hyperparameters
-    EPISODES = args.max_episodes  # Number of episodes to run
-    STEPS = args.steps  # Maximum number of steps per episode
-    BATCH_SIZE = args.batch_size  # Batch size for learning
-    pi_lr = 1e-5  # Learning rate for the policy
-    vf_lr = 5e-4  # Learning rate for the value function
-    saving_model = args.saving_model  # Whether to save the model
-    update_interval = args.update_interval  # Update interval for PPO
+    EPISODES = args.max_episodes
+    STEPS = args.steps
+    BATCH_SIZE = args.batch_size
+    pi_lr = 1e-5
+    vf_lr = 5e-4
+    saving_model = args.saving_model
+    update_interval = args.update_interval
 
-    # Environment Initialization
     params = {
             'host': 'localhost',  # '104.51.58.17',
             'port': args.port,  # The port where your CARLA server is running
@@ -63,9 +62,7 @@ def main(args):
     controller version 3: history of 10 128x128 weighted images as input
     """
 
-    # Initialize the CarlaEnv environment with the specified parameters
     env = gym.make('CarlaRL-v0', params=params)
-    # Agent initialization
     input_f = 'dict' if params['model'] == 'ufld' else 'image'
     agent = ActorCritic(obs_dim=1,
                         pi_lr=pi_lr,
@@ -80,12 +77,10 @@ def main(args):
     training_log = {'episode': [], 'policy_loss': [], 'value_loss': [], 'episode_return': [], 'episode_length': [], 'policy_mean': [], 'policy_std': [], 'policy_entropy': []}
     best_return = -np.inf
 
-    # blockPrint()
+    blockPrint()
 
     restrict = params['restriction']
-    # Main Training Loop
     for episode in range(EPISODES):
-        # enablePrint()
         state, ep_return, ep_len = env.reset(), 0, 0
         bootstrap_value = 0.0
         if (episode + 1) % update_interval == 0:
@@ -93,18 +88,12 @@ def main(args):
 
         with tqdm(total=STEPS, desc=f"Episode {episode + 1}/{EPISODES}", leave=True) as pbar:
             for step in range(STEPS):
-                # Get action from the agent
                 action, value, logp = agent(state['actor_input'])
-
-                # Take a step in the environment
                 action = action.item()
-                # print(f'action: {action}')
                 next_state, reward, done, info = env.step(action)
                 steer_guidance = info['guidance']
                 road_opt = info['road_option']
                 ep_return += reward
-
-                # Store data for training
                 value = value.item()
                 logp = logp.item()
 
@@ -139,14 +128,11 @@ def main(args):
                         bootstrap_value = value.item()
                     break
                         
-        # Update the agent after each episode
-        # print(f'Updating the agent after episode {episode + 1}')
         agent.finish_path(bootstrap_value)
-        # agent.update(batch_indices=None)
         agent.compute_gae(gamma=args.gamma, lam=0.95)
         num_samples = ep_len
         indices = np.arange(num_samples)
-        np.random.shuffle(indices)  # Shuffle the indices
+        np.random.shuffle(indices)
         num_batches = int(np.ceil(num_samples / BATCH_SIZE))
         policy_losses, value_losses, ents = [], [], []
         if ((episode+1) % update_interval) < (update_interval / 2):
@@ -156,12 +142,7 @@ def main(args):
         for i in range(num_batches):
             begin = i * BATCH_SIZE
             end = min((i + 1) * BATCH_SIZE, num_samples)
-            # if i == num_batches - 1:
-            #     agent.finish_path(bootstrap_value, bootstrap=True)
-            # else:
-            #     agent.finish_path(bootstrap=False, v_index=end)
             batch_indices = indices[begin:end]
-            # print(f'batch_indices: {batch_indices}')
             policy_loss, value_loss, ent = agent.update(batch_indices=batch_indices, clip_param=0.2, beta=b)
             policy_losses.append(policy_loss)
             value_losses.append(value_loss)
@@ -175,7 +156,6 @@ def main(args):
 
         agent.memory.clear()
 
-        # Log the training progress
         training_log['episode'].append(episode+1)
         training_log['episode_return'].append(ep_return)
         training_log['episode_length'].append(ep_len)
@@ -184,23 +164,10 @@ def main(args):
         training_log['policy_mean'].append(policy_mean)
         training_log['policy_std'].append(policy_std)
         training_log['policy_entropy'].append(np.mean(ents))
-        # if (episode + 1) % update_interval == 0:
-        #     training_log['policy_loss'].append(np.mean(policy_losses))
-        #     training_log['value_loss'].append(np.mean(value_losses))
-        #     training_log['policy_mean'].append(policy_mean)
-        #     training_log['policy_std'].append(policy_std)
-        # else:
-        #     training_log['policy_loss'].append(None)
-        #     training_log['value_loss'].append(None)
-        #     training_log['policy_mean'].append(None)
-        #     training_log['policy_std'].append(None)
-            
-        # Save the training log dynamically after each episode
         df = pd.DataFrame(training_log)
         train_log_save_filename = os.path.join(save_dir, f'log.csv')
         df.to_csv(train_log_save_filename, index=False, encoding='utf-8')
 
-        # Save the model with the best return
         if saving_model and ep_return > best_return:
             best_return = ep_return
             save_filename = '{}/{}_epi={}_r={}.pth'.format(save_dir, env.start_type, episode+1, int(ep_return))

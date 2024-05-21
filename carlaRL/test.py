@@ -5,9 +5,7 @@ import numpy as np
 import torch
 
 from gym_carlaRL.envs.carlaRL_env import CarlaEnv
-# from gym_carlaRL.agent.random_agent import RandomAgent
 from gym_carlaRL.agent.ppo_agent import ActorCritic
-from gym_carlaRL.agent.controller_agent import ControllerNet
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,16 +42,9 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = '/storage1/yvorobeychik/Active/aml/carla/verification/models/ppo_single_img/episode=4330_reward=287.671.pth'  # this is single image agent
-    # model_path = '/storage1/yvorobeychik/Active/aml/carla/verification/models/ppo_his/random_epi=4283_r=288.pth'  # this is agent with history of 10 weighted images
-    # f1tenth_path = '/storage1/yvorobeychik/Active/aml/carla/carlaRL/log/ppo/imgOnly/f1tenth/1/random_epi=1703_r=570.pth'
+    model_path = ''
     ppoAgent.load_state_dict(torch.load(model_path))
     ppoAgent.eval()
-    # agent = RandomAgent(env.action_space)
-    # controller = ControllerNet().to(DEVICE)
-    # model_path = '/storage1/yvorobeychik/Active/aml/carla/carlaRL/log/controller/2/random_r=286.13_len=300.pth'
-    # controller.load_state_dict(torch.load(model_path))
-    # controller.eval()
 
     # Run episodes
     final_v_states = []
@@ -85,20 +76,6 @@ def main():
             state = next_state
             if done:
                 break
-
-    # while True:
-    #     # Placeholder for the action selection logic
-    #     # For now, we'll just use a dummy action
-    #     # Update this with a meaningful action based on your action space definition
-    #     obs = env.reset()
-    #     action = agent.act(obs)
-    #     done = False
-    #     # Take a step in the environment with the chosen action
-    #     obs, reward, done, info = env.step(action)
-
-    #     # Check if the episode is done, and reset the environment if so
-    #     if done:
-    #         obs = env.reset()
 
 if __name__ == '__main__':
     main()

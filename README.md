@@ -1,9 +1,9 @@
-## Verifiable End-to-End Lane Following with Reinforcement Learning
+## Verifiable End-to-End Autonomous Driving
 
-Implementation of RL and Verification parts of the Thesis: **Verifiable End-to-End Lane Following with Reinforcement Learning**<br>
+Implementation of the Thesis: **Verifiable End-to-End Autonomous Driving**<br>
 Xinhang (Owen) Ma<br>
 
-For codes and documentations of the other parts of the project, please refer to [f1tenth documentation](/assets/F1Tenth_Documentation.pdf) or contact us by email.
+For codes and documentations of the engineering parts of the f1tenth vehicle in a miniature city, please refer to [f1tenth documentation](/assets/F1Tenth_Documentation.pdf) or contact us by email.
 
 ## Requirements
 
@@ -17,8 +17,8 @@ For codes and documentations of the other parts of the project, please refer to 
 
 1. Clone this repository:
     ```Shell
-    git clone 
-    cd 
+    git clone https://github.com/xhOwenMa/v-e2e-lane-follow-rl.git
+    cd v-e2e-lane-follow-rl
     ```
 
 2. Install the required libraries (we use Conda as an example):
@@ -37,3 +37,11 @@ For codes and documentations of the other parts of the project, please refer to 
 We provide two different trained RL models for lane following, they are both trained using PPO algorithm. You can find them in the `verification/models` folder.
 
 For the Generator models, you can download trained models from: [Google Drive](https://drive.google.com/drive/folders/1PZSltWbhaq7YG0EX3oVQiOhthMaYsQN0?usp=sharing).
+
+## carlaRL
+
+Please see [carlaRL.md](carlaRL/carlaRL.md) for more details.
+
+## Verification
+
+Please see [verification.md](verification/verification.md) for more details.

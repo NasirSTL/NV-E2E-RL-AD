@@ -1,14 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2019: Jianyu Chen (jianyuchen@berkeley.edu).
-#
-# This file is modified from <https://github.com/carla-simulator/carla>:
-# Copyright (c) 2018 Intel Labs.
-# authors: German Ros (german.ros@intel.com)
-#
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
-
 import math
 import numpy as np
 import carla
