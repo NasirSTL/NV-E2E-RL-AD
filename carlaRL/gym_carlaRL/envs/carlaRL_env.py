@@ -113,7 +113,7 @@ class CarlaEnv(gym.Env):
 
         # Initialize the lane detector
         if self.params['model'] == 'lanenet':
-            self.lane_detector = LaneDetector(model_path="/storage1/yvorobeychik/Active/aml/carla/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth")
+            self.lane_detector = LaneDetector(model_path=self.params['model_path'])
             self.transform = A.Compose([
                 A.Resize(256, 512),
                 A.Normalize(),
@@ -143,7 +143,7 @@ class CarlaEnv(gym.Env):
                 input_height = self.resize_height, input_width = self.resize_width,
                 fc_norm = False
             ).to(DEVICE)
-            state_dict = torch.load('', map_location = 'cpu')['model']
+            state_dict = torch.load(self.params['model_path'], map_location = 'cpu')['model']
             compatible_state_dict = {}
             for k, v in state_dict.items():
                 if 'module.' in k:

@@ -33,28 +33,29 @@ def main(args):
     update_interval = args.update_interval
 
     params = {
-            'host': 'localhost',  # '104.51.58.17',
-            'port': args.port,  # The port where your CARLA server is running
-            'town': 'Town04',  # The map to use
-            'mode': 'train_controller',  # The mode to run the environment in: train is for RL algorithms only
-            'algo' : 'ppo',  # this decides how the image is processed
-            'controller_version': 3,  # The version of the controller to use
-            'dt': 0.1,  # time interval between two frames
-            'desired_speed': 3.6,  # Desired speed (m/s)
-            'continuous_accel_range': [-3.0, 3.0],  # continuous acceleration range
-            'continuous_steer_range': [-1.0, 1.0],  # continuous steering angle range
-            'clip_action': args.clip_action,  # clip the steering angle
-            'max_waypt': 12,  # maximum number of waypoints
-            'out_lane_thres': 1.5,  # threshold for out of lane
-            'display_size': [256, 256],  # Screen size for the pygame window
-            'display' : args.display,  # Whether to display the pygame window
-            'max_time_episode': STEPS,  # Maximum time for each episode
-            'weather': 6,  # Weather preset (6 is sunny)
-            'fps_sim': 20,  # Simulation FPS
-            'model': 'ufld',  # Lane detection model to use
-            'record_interval': 10,  # The interval in which to record the episode
-            'restriction': 40 if args.curriculum else STEPS, 
-            'collect': False,
+        'host': 'localhost',  # '104.51.58.17',
+        'port': args.port,  # The port where your CARLA server is running
+        'town': 'Town04',  # The map to use
+        'mode': 'train_controller',  # The mode to run the environment in: train is for RL algorithms only
+        'algo' : 'ppo',  # this decides how the image is processed
+        'controller_version': 3,  # The version of the controller to use
+        'dt': 0.1,  # time interval between two frames
+        'desired_speed': 3.6,  # Desired speed (m/s)
+        'continuous_accel_range': [-3.0, 3.0],  # continuous acceleration range
+        'continuous_steer_range': [-1.0, 1.0],  # continuous steering angle range
+        'clip_action': args.clip_action,  # clip the steering angle
+        'max_waypt': 12,  # maximum number of waypoints
+        'out_lane_thres': 1.5,  # threshold for out of lane
+        'display_size': [256, 256],  # Screen size for the pygame window
+        'display' : args.display,  # Whether to display the pygame window
+        'max_time_episode': STEPS,  # Maximum time for each episode
+        'weather': 6,  # Weather preset (6 is sunny)
+        'fps_sim': 20,  # Simulation FPS
+        'model': 'lanenet',  # Lane detection model to use
+        'model_path': 'gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
+        'record_interval': 10,  # The interval in which to record the episode
+        'restriction': 40 if args.curriculum else STEPS, 
+        'collect': False,
     }
     """
     controller version 1: simple agent that takes one 128x128 image as input

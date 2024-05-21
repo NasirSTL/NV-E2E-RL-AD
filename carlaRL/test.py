@@ -32,7 +32,8 @@ def main():
         'max_time_episode': 300,  # Maximum time for each episode
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
-        'model': 'openvino',  # Lane detection model to use
+        'model': 'lanenet',  # Lane detection model to use
+        'model_path': '',  # Path to the lane detection model
         'record_interval': 10,  # The interval in which to record the episode
         'collect': True,  # Whether to collect the data
     }

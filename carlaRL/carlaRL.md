@@ -40,6 +40,8 @@ here we briefly describe the parameters that we have used in the CARLA environme
 
 * `model`: the model used for lane detection. The relevant values are openvino, lanenet, and ufld. If you are using the agent model we trained, you should set this to lanenet. 
 
+* `model_path`: the path to the lane detection model. By default, it is set to the LaneNet model we trained. This is the same model used in the f1tenth vehicle. 
+
 * `collect`: this is a boolean value that controls whether to collect data or not. If set to True, the agent will collect data and save it in the `data` directory. This is useful for visualizing and also collecting data for training the generative model or finetuning the agent.
 
 Other parameters should be self-explanatory. The scripts also contain comments that explain the parameters. If you have any questions, feel free to ask.
