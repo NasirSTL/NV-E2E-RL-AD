@@ -1,6 +1,6 @@
 ## CARLA-RL
 
-This directory is the implementation of the Reinforcement Learning chapter of the Thesis: *Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**
+This directory is the implementation of the Reinforcement Learning chapter of the Thesis: **Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**
 
 ## Requirements
 
