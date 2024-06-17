@@ -43,8 +43,8 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = ''
-    ppoAgent.load_state_dict(torch.load(model_path))
+    model_path = 'v-e2e-rl-ad/verification/models/ppo_his/random_epi=4283_r=288.pth' #change path to where you have your lane following model
+    ppoAgent.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))) #add map location if you just want to use CPU
     ppoAgent.eval()
 
     # Run episodes
