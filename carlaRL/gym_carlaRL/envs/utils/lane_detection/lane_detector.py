@@ -16,7 +16,7 @@ class LaneDetector():
         self.cg = cam_geom
         self.cut_v, self.grid = self.cg.precompute_grid()
         self.model = LaneNet()  # Instantiate the model architecture
-        state_dict = torch.load(model_path)
+        state_dict = torch.load(model_path, map_location=torch.device('cpu')) 
         # state_dict = torch.load(model_path)['model_state_dict']
         self.model.load_state_dict(state_dict)  # Apply the state dictionary
         self.model.eval()
