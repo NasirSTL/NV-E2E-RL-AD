@@ -1,5 +1,7 @@
 ## Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving
 
+Version 2 of Owen Ma's [v-e2e-rl-ad repository](https://github.com/xhOwenMa/v-e2e-rl-ad)
+
 Implementation of the Thesis: **Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**<br>
 Xinhang (Owen) Ma<br>
 
