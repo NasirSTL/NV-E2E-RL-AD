@@ -324,6 +324,15 @@ class CarlaEnv(gym.Env):
     
     def get_observations(self):
         obs = {}
+        speed = self.get_vehicle_speed()
+        ego_trans = self.ego.get_transform()
+        ego_x = ego_trans.location.x
+        ego_y = ego_trans.location.y
+        ego_z = ego_trans.location.z
+        ego_yaw = ego_trans.rotation.yaw/180*np.pi
+        lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+        delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
+        v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
 
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -359,17 +368,6 @@ class CarlaEnv(gym.Env):
                 self.data_saver.save_lane_image(img_to_save)
                 self.data_saver.save_metrics(v_state)
                 self.data_saver.step()
-            
-        speed = self.get_vehicle_speed()
-        ego_trans = self.ego.get_transform()
-        ego_x = ego_trans.location.x
-        ego_y = ego_trans.location.y
-        ego_z = ego_trans.location.z
-        ego_yaw = ego_trans.rotation.yaw/180*np.pi
-        lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
-        delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
-
-        v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
 
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
