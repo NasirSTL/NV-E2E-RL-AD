@@ -69,8 +69,7 @@ def main(args):
                         pi_lr=pi_lr,
                         v_lr=vf_lr,
                         pi_epochs=5,
-                        v_epochs=5,
-                        input_format=input_f).to(DEVICE)
+                        v_epochs=5).to(DEVICE)
     if args.load_model is not None:
         agent.load_state_dict(torch.load(args.load_model))
         print(f'Model loaded from {args.load_model}')
