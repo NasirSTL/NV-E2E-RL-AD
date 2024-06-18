@@ -6,6 +6,7 @@ import numpy as np
 import carla
 import sys
 import xml.etree.ElementTree as ET
+import networkx as nx
 sys.path.append('C:/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') # tweak to where you put carla
 
 from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
@@ -379,9 +380,9 @@ def find_all_nodes_and_edges(map):
 
   return node_edge_dict
 
-def get_directed_edge(intersection, objective, map):
+def get_directed_edge(location, objective, map):
   """
-  Given a map, an intersection location, and another location, return the roadoption to get from intersection to 
+  Given a map, a location, and another location, return the roadoption to get from location to 
   objective.
 
   :param intersection: any location object, but intended for intersections
@@ -389,10 +390,10 @@ def get_directed_edge(intersection, objective, map):
   :param map: world map object
   :return: dictionary of all connections for each intersection
   """
-  intersection_waypoint = map.get_waypoint(intersection, project_to_road=True, lane_type=carla.LaneType.Any)
+  location_waypoint = map.get_waypoint(location, project_to_road=True, lane_type=carla.LaneType.Any)
   objective_waypoint = map.get_waypoint(objective, project_to_road=True, lane_type=carla.LaneType.Any)
 
-  direction = compute_connection_original(intersection_waypoint, objective_waypoint)
+  direction = compute_connection_original(location_waypoint, objective_waypoint)
 
   return (direction, objective)
 
@@ -447,5 +448,69 @@ def get_waypoints_in_junction(map, junction_id):
   junction_waypoints = [wp for wp in all_waypoints if wp.is_junction and wp.get_junction().id == junction_id]
   return junction_waypoints
 
+def get_high_level_map(world): #needs debugging
+  """
+  Given a world object, generate high-level map of world
+
+  :param world: world object
+  :return: dictionary of each junction with a list of its connected edges
+  """
+
+  topology = world.get_map().get_topology() #get all road segments in map
+  junctions = set() #set to ensure uniqueness
+  edges = [] #list of edges between nodes (intersections)
+  junction_ports = {} #each junction ID has a list of coordinates that enter the junction
+  map_dict = {} #each junction ID has edges it connects to
+
+  for segment in topology: #for each road segment, identify the start and end of road, and the road id
+    start_waypoint = segment[0]
+    end_waypoint = segment[1]
+    road_id = start_waypoint.road_id
+    start_waypoint_location = (start_waypoint.transform.location.x, start_waypoint.transform.location.y)
+    end_waypoint_location = (end_waypoint.transform.location.x, end_waypoint.transform.location.y)
+
+    #get location of start of junction and get junction ID
+    if start_waypoint.is_junction:
+      junctionID = start_waypoint.get_junction().id
+      junctions.add((start_waypoint_location, junctionID)) 
+      junction_ports[junctionID].append(start_waypoint_location) 
+    
+    #get location of end of junction and get ID
+    if end_waypoint.is_junction:
+        junctionID = end_waypoint.get_junction().id
+        junctions.add((end_waypoint_location, junctionID)) 
+        junction_ports[junctionID].append(end_waypoint_location) 
+
+    #add edge to list
+    edges.append(((start_waypoint.transform.location.x, start_waypoint.transform.location.y),
+                  (end_waypoint.transform.location.x, end_waypoint.transform.location.y),
+                  road_id))
+    
+    for ID in junction_ports: #each junction connects to edges
+      if junction_ports[ID].contains(start_waypoint_location):
+        map_dict[ID].append(road_id)
+      if junction_ports[ID].contains(end_waypoint_location):
+        map_dict[ID].append(road_id)
+
+    return map_dict
+
+def get_junctions_from_edge(map_dict, road_id):  #needs debugging
+  """
+  Given junctions and the edges they connect to and a road id, identify which junctions the road connects to
+
+  :param map_dict: dictionary of junction ID's and their edges
+  :param road_id: road id of edge
+  :return: dictionary of each junction with a list of its connected edges
+  """
+  connected_junctions = []
+  for junction in map_dict:
+    if map_dict[junction].contains(road_id):
+      connected_junctions.append(junction)
+  
+  return connected_junctions
 
 
+
+
+
+      

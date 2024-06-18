@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./carlaRL/gym_carlaRL/envs"
+    ]
+}
