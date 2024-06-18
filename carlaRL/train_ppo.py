@@ -7,6 +7,7 @@ import gymnasium as gym
 import argparse
 
 from enum import Enum
+from carlaRL.utils import blockPrint, enablePrint
 from gym_carlaRL.envs.carlaRL_env import CarlaEnv
 from gym_carlaRL.agent.ppo_agent import ActorCritic
 from utils import *
