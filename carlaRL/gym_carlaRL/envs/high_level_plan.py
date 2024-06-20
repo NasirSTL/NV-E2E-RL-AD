@@ -14,12 +14,13 @@ sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/glob
 from misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 from route_planner import compute_connection_original
 import agents
-from agents.navigation.global_route_planner import GlobalRoutePlanner
+from agents.navigation.global_route_planner2 import GlobalRoutePlanner
 
 
 class node():
-    def __init__(self, junction_id):
+    def __init__(self, junction_id, map):
       self.junction_id = junction_id
+      self.map = map
       self.edges = set()
 
     def get_id(self):
@@ -38,7 +39,11 @@ class node():
       all_waypoints = self.map.generate_waypoints(2.0) #get list of all waypoints in map
 
       #filter waypoints that belong to specific junction id
-      junction_waypoints = [wp for wp in all_waypoints if wp.is_junction and wp.get_junction().id == self.__format__junction_id]
+      junction_waypoints = []
+      for wp in all_waypoints:
+         if wp.is_junction and wp.get_junction().id == self.junction_id:
+            junction_waypoints.append(wp)
+
       return junction_waypoints
 
     def get_entrances(self, map):
@@ -61,6 +66,9 @@ class node():
   
       return list
     
+    def get_location_from_junctionid():
+      return
+    
 class plan():
 
   def __init__(self, world, start, goal):
@@ -70,18 +78,17 @@ class plan():
      self.goal = goal
      self.start = start
 
-  def get_path(self): #return nodes and edges to go through
+  def get_path(self, graph): #return nodes and edges to go through
      path_list = []
-     graph = graph(self.world)
      nodes_in_map = graph.get_nodes_and_edges() #dictionary of junction id and connected edges
-     grp = GlobalRoutePlanner(self.map, 1)
+     sampling_resolution = 1
+     grp = GlobalRoutePlanner(self.map, sampling_resolution, self.world)
      intersections_directions = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
      found_junction = True
      for pair in intersections_directions:
        if pair[0].is_junction and found_junction == False: 
-         junction_node = node(pair[0].junction_id)
-         junction_node.edges = nodes_in_map[str(pair[0].junction_id)]
-         path_list.append(junction_node)
+         junction_node = node(pair[0].junction_id, self.map)
+         path_list.append(junction_node.junction_id)
          found_junction = True
        if found_junction == True and pair[0].is_junction == False: #are now leaving junction
          path_list.append(pair[0].road_id)
@@ -136,7 +143,6 @@ class graph():
 
         :return: list of nodes in map
         """
-        print("in method")
         topology = self.map.get_topology() #get all road segments in map
         junctions = set() #set to ensure uniqueness
 
@@ -149,7 +155,6 @@ class graph():
 
             #get location of start of junction and get junction ID
             if start_waypoint.is_junction:
-                print("found junction")
                 junctionID = start_waypoint.get_junction().id
                 if (start_waypoint_location, junctionID) not in junctions:
                     junctions.add((start_waypoint_location, junctionID))
@@ -159,13 +164,12 @@ class graph():
                         junction_node.edges.add(road_id)
                         found = True
                     if found == False:
-                      junction_node = node(junctionID)
+                      junction_node = node(junctionID, self.map)
                       junction_node.edges.add(road_id)
                       self.nodes_object.append(junction_node)
             
             #get location of end of junction and get ID
             if end_waypoint.is_junction:
-                print("found junction")
                 junctionID = end_waypoint.get_junction().id
                 if (end_waypoint_location, junctionID) not in junctions:
                     junctions.add((end_waypoint_location, junctionID)) 
@@ -175,7 +179,7 @@ class graph():
                         junction_node.edges.add(road_id)
                         found = True
                     if found == False:
-                      junction_node = node(junctionID)
+                      junction_node = node(junctionID, self.map)
                       junction_node.edges.add(road_id)
                       self.nodes_object.append(junction_node)
 
@@ -259,7 +263,7 @@ def debug_locations(world, locations, spectator):
   # draw all point in the sim for 60 seconds
   for wp in locations:
     world.debug.draw_string(wp, 'O', draw_shadow=False,
-        color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+        color=carla.Color(r=0, g=0, b=255), life_time=2.0,
         persistent_lines=True)
 
   #move spectator for top down view to see all points 
@@ -280,5 +284,5 @@ def get_junctions_from_edge(map_dict, road_id):  #needs debugging
     if map_dict[junction].contains(road_id):
       connected_junctions.append(junction)
   
-  return connected_junctions
+  return connected_junctions   
 

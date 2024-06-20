@@ -27,6 +27,7 @@ from gym_carlaRL.envs.ufld.model.model_culane import parsingNet
 from gym_carlaRL.envs.carla_util import *
 from gym_carlaRL.envs.route_planner import RoutePlanner
 from gym_carlaRL.envs.misc import *
+from high_level_plan import *
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -333,7 +334,8 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-
+        map_graph = graph(self.world, self.world.get_map)
+        
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
             pred, _ = self.lane_detector(image)
