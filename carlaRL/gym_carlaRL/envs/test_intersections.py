@@ -32,8 +32,9 @@ if __name__ == '__main__':
     world = client.get_world()
     client.set_timeout(2000.0)
     spectator = world.get_spectator()
-    client.load_world('Town04')
+    client.load_world('Town02')
 
+    
     # get map look at the map
     town_map = world.get_map()
 
@@ -51,15 +52,14 @@ if __name__ == '__main__':
     for wp in junction_waypoints:
         junction_locations.append(wp.transform.location)  
 
-    start_loc = carla.Location()
-    start_loc.x = -13.386819839477539
-    start_loc.y = 279.0130310058594
-    start_loc.z = 0.0
 
-    goal_loc = carla.Location()
-    goal_loc.x = 1.7574024200439453
-    goal_loc.y = -299.07855224609375
-    goal_loc.z = 0.0
+    all_waypoints = town_map.generate_waypoints(2.0)
+
+    rand_start = random.choice(all_waypoints)
+    rand_goal = random.choice(all_waypoints)
+    
+    start_loc = rand_start.transform.location
+    goal_loc = rand_goal.transform.location
 
 
     world.debug.draw_string(start_loc, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
@@ -75,9 +75,12 @@ if __name__ == '__main__':
     path = plan(world, start_loc, goal_loc)
     path_list = path.get_path(map_graph)
 
-    
-    
+
     print(path_list)
+    
+    
+    
+    
     
 
 

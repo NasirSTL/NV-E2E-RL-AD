@@ -15,6 +15,8 @@ import os
 from collections import deque
 import sys
 
+from agents.navigation.local_planner import RoadOption
+
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
@@ -334,7 +336,11 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-        map_graph = graph(self.world, self.world.get_map)
+        path = plan(self.world, ego_trans.location)
+        #based on plan (where you currently are, what steps to take to get to goal), receive command
+        command = RoadOption(3)
+        if type(path[0]) is tuple:
+            command = path[0][1]
         
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -373,7 +379,7 @@ class CarlaEnv(gym.Env):
 
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
-            'vehicle_state': v_state,
+            'path': path, 'command': command, 'vehicle_state': v_state,
         }
 
         return obs

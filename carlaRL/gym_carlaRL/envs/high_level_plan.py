@@ -88,7 +88,7 @@ class plan():
      for pair in intersections_directions:
        if pair[0].is_junction and found_junction == False: 
          junction_node = node(pair[0].junction_id, self.map)
-         path_list.append(junction_node.junction_id)
+         path_list.append((junction_node.junction_id, pair[1]))
          found_junction = True
        if found_junction == True and pair[0].is_junction == False: #are now leaving junction
          path_list.append(pair[0].road_id)
