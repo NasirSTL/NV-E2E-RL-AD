@@ -91,7 +91,7 @@ def main(args):
             for step in range(STEPS):
                 action, value, logp = agent(state['actor_input'])
                 action = action.item()
-                next_state, reward, done, info = env.step(action)
+                next_state, reward, done, info = env.step(action)  #given action, determine step through carlaRL_env
                 steer_guidance = info['guidance']
                 road_opt = info['road_option']
                 ep_return += reward

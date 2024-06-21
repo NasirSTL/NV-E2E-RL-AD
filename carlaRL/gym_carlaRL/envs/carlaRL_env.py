@@ -336,18 +336,17 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-        
+        steer = self.ego.get_wheel_steer_angle() #add parameters
         
         path = plan(self.world, ego_trans.location)
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
-        command = RoadOption(4) #default roadoption is lanefollow
-
-        #if the next part of the path is a junction, change roadoption to direction of next edge
-        if type(path[0]) is tuple:
-            command = path[0][1]
-        
-
+        plan = path.get_high_level_plan()
+        current_objective = plan[0] #usually (road or junction id, road or junction, command)
+        if len(current_objective) ==1:
+            command = "STOP"
+        else: 
+            command = current_objective[2]
 
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -386,60 +385,66 @@ class CarlaEnv(gym.Env):
 
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
-            'command': command, 'vehicle_state': v_state,
+            'command': command, 'path': plan, 'vehicle_state': v_state,
         }
 
         return obs
 
     def get_reward(self, obs):
+        print("getting reward")
         # # Define how the reward is calculated based on the state
         # speed = self.get_vehicle_speed()
         # r_speed = -abs(speed - self.desired_speed)
 
-        # reward for collision
-        # r_collision = 0
-        # if len(self.collision_hist) > 0:
-        #     r_collision = -1
-
         vehicle_state = obs['vehicle_state']
+        current_command = obs['command'] #does the car steer according to the command?
+        r = 0
 
-        # reward for steering:
-        r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
-        r_steer = -(r_steer / 0.04)  # normalize the steering
+        r_collision = 0
+        if len(self.collision_hist) > 0:
+            r_collision = -1
 
-        # reward for out of lane
-        dis = abs(vehicle_state[0])
-        r_out = 0
-        if dis > self.params['out_lane_thres']:
-            r_out = -1
-        dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-        # ego_trans = self.ego.get_transform()
-        # ego_x = ego_trans.location.x
-        # ego_y = ego_trans.location.y
-        # ego_yaw = ego_trans.rotation.yaw/180*np.pi
-        # dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
-        # delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
-        # print(f'dis: {dis}; delta_yaw: {delta_yaw}')
+        r = r + r_collision
+
+        if current_command == RoadOption.LANEFOLLOW:
+            # reward for steering:
+            r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
+            r_steer = -(r_steer / 0.04)  # normalize the steering
+
+            # reward for out of lane
+            dis = abs(vehicle_state[0])
+            r_out = 0
+            if dis > self.params['out_lane_thres']:
+                r_out = -1
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+        
+            # ego_trans = self.ego.get_transform()
+            # ego_x = ego_trans.location.x
+            # ego_y = ego_trans.location.y
+            # ego_yaw = ego_trans.rotation.yaw/180*np.pi
+            # dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+            # delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
+            # print(f'dis: {dis}; delta_yaw: {delta_yaw}')
         
 
-        # # longitudinal speed
-        # v = self.ego.get_velocity()
-        # lspeed = np.array([v.x, v.y])
-        # lspeed_lon = np.dot(lspeed, w)
+            # # longitudinal speed
+            # v = self.ego.get_velocity()
+            # lspeed = np.array([v.x, v.y])
+            # lspeed_lon = np.dot(lspeed, w)
 
-        # # cost for too fast
-        # r_fast = 0
-        # if lspeed_lon > self.desired_speed:
-        #     r_fast = -1
+            # # cost for too fast
+            # r_fast = 0
+            # if lspeed_lon > self.desired_speed:
+            #     r_fast = -1
 
-        # # cost for lateral acceleration
-        # r_lat = - abs(self.ego.get_control().steer) * lspeed_lon**2  # discourage high steering commands at high speeds
+            # # cost for lateral acceleration
+            # r_lat = - abs(self.ego.get_control().steer) * lspeed_lon**2  # discourage high steering commands at high speeds
 
-        r = 1 + dis
+            r = 1 + dis
 
         return r
 
-    def is_done(self, obs):
+    def is_done(self, obs):  #stop episode if collision, max timestep, out of lane?
         ego_x, ego_y = get_pos(self.ego)
 
         # if collides
