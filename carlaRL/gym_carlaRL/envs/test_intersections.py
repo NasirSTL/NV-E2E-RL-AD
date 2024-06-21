@@ -32,26 +32,11 @@ if __name__ == '__main__':
     world = client.get_world()
     client.set_timeout(2000.0)
     spectator = world.get_spectator()
-    client.load_world('Town02')
+    client.load_world('Town04')
 
     
     # get map look at the map
     town_map = world.get_map()
-
-    map_graph = graph(world, town_map)
-    
-    map_graph.find_junctions_and_edges()
-    junction_waypoints = []
-    junction_locations = []
-
-    for node in map_graph.nodes_object:
-        waypoints = node.get_all_waypoints()
-        for wp in waypoints:
-            junction_waypoints.append(wp)
-
-    for wp in junction_waypoints:
-        junction_locations.append(wp.transform.location)  
-
 
     all_waypoints = town_map.generate_waypoints(2.0)
 
@@ -67,13 +52,13 @@ if __name__ == '__main__':
     
     time.sleep(10)
 
-    world.debug.draw_string(goal_loc, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+    world.debug.draw_string(goal_loc, 'O', draw_shadow=False,color=carla.Color(r=255, g=0, b=0), life_time=60.0,
         persistent_lines=True)
     
     time.sleep(10)
     
     path = plan(world, start_loc, goal_loc)
-    path_list = path.get_path(map_graph)
+    path_list = path.get_high_level_plan()
 
 
     print(path_list)

@@ -14,8 +14,7 @@ sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/glob
 from misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 from route_planner import compute_connection_original
 import agents
-from agents.navigation.global_route_planner2 import GlobalRoutePlanner
-
+from agents.navigation.global_route_planner2 import GlobalRoutePlanner, RoadOption
 
 class node():
     def __init__(self, junction_id, map):
@@ -73,28 +72,156 @@ class plan():
 
   def __init__(self, world, start, goal):
      self.world = world
-     self.map = self.world.get_map
+     self.map = self.world.get_map()
      self.path = []
      self.goal = goal
      self.start = start
 
-  def get_path(self, graph): #return nodes and edges to go through
-     path_list = []
-     nodes_in_map = graph.get_nodes_and_edges() #dictionary of junction id and connected edges
-     sampling_resolution = 1
-     grp = GlobalRoutePlanner(self.map, sampling_resolution, self.world)
-     intersections_directions = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
-     found_junction = True
-     for pair in intersections_directions:
-       if pair[0].is_junction and found_junction == False: 
-         junction_node = node(pair[0].junction_id, self.map)
-         path_list.append((junction_node.junction_id, pair[1]))
-         found_junction = True
-       if found_junction == True and pair[0].is_junction == False: #are now leaving junction
-         path_list.append(pair[0].road_id)
-         found_junction = False
 
-     return path_list #list of intersections we need to get to and which road to go to from there
+  def get_high_level_plan(self):
+
+    # Get the route as a list of road and junction IDs
+    sampling_resolution = 1
+    grp = GlobalRoutePlanner(self.map, sampling_resolution)
+    route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
+
+    for i in route:
+      self.world.debug.draw_string(i[0].transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=255, b=0), life_time=60.0,
+        persistent_lines=True)
+      time.sleep(.02)
+
+    high_level_plan = []
+
+    waypoint, current_command = route[0]
+    if current_command != RoadOption.CHANGELANELEFT and current_command != RoadOption.CHANGELANERIGHT:
+      if waypoint.is_junction:
+        high_level_plan.append((waypoint.junction_id, 'Junction', current_command))
+        self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+        persistent_lines=True)
+        time.sleep(.2)
+      else:
+        high_level_plan.append((waypoint.road_id, 'Road', current_command))
+        self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+        persistent_lines=True)
+        time.sleep(.2)
+
+    for i in range(1, len(route)):
+      waypoint, new_command = route[i]
+      if new_command == RoadOption.LEFT and new_command != current_command:
+              current_command == new_command
+              high_level_plan.append((waypoint.junction_id, 'Junction', new_command))
+              self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+              persistent_lines=True)
+              time.sleep(.2)
+      else:        
+       if current_command != new_command:
+         if new_command != RoadOption.CHANGELANELEFT and new_command != RoadOption.CHANGELANERIGHT:
+            current_command = new_command
+            if waypoint.is_junction:
+              high_level_plan.append((waypoint.junction_id, 'Junction', new_command))
+              self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+              persistent_lines=True)
+              time.sleep(.2)
+
+            else:
+              high_level_plan.append((waypoint.road_id, 'Road', new_command))
+              self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
+              persistent_lines=True)
+              time.sleep(.2)
+
+   # Add last command as stop
+    high_level_plan.append("STOP")
+
+    return high_level_plan
+  
+  """
+  def get_high_level_plan(self):
+
+    # Get the route as a list of road and junction IDs
+    sampling_resolution = 1
+    grp = GlobalRoutePlanner(self.map, sampling_resolution)
+    route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
+
+    for i in route:
+      self.world.debug.draw_string(i[0].transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=255, b=0), life_time=60.0,
+        persistent_lines=True)
+      time.sleep(.02)
+
+    high_level_plan = []
+
+    found_junction = False
+    found_road = False
+    go_left = False
+    go_right = False
+
+    for i in range(len(route)-1):
+        waypoint, current_ro = route[i]
+        next_waypoint, next_ro = route[i+1]
+        road_id = waypoint.road_id
+
+        if current_ro == RoadOption.LEFT and go_left == False:
+          go_left = True
+          if waypoint.is_junction:
+            high_level_plan.append((waypoint.junction_id, 'Junction', 'LEFT'))
+          else:
+            high_level_plan.append((waypoint.road_id, 'Road', 'LEFT'))
+
+        if next_ro == RoadOption.RIGHT and go_right == False:
+          go_right = True
+          if waypoint.is_junction:
+            high_level_plan.append((waypoint.junction_id, 'Junction', 'RIGHT'))
+          else:
+            high_level_plan.append((waypoint.road_id, 'Road', 'LEFT'))
+            
+
+        if waypoint.is_junction and found_junction == False:
+            found_junction = True
+            found_road = False
+            junction_id = waypoint.junction_id
+            current_yaw = abs(waypoint.transform.rotation.yaw)
+            next_yaw = abs(next_waypoint.transform.rotation.yaw)
+            direction = self.get_direction(current_yaw, next_yaw)
+            high_level_plan.append((junction_id, 'Junction', direction))
+            self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=255, g=0, b=0), life_time=60.0,
+            persistent_lines=True)
+            time.sleep(.02)
+        if not waypoint.is_junction and found_road == False:
+            self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=255, g=0, b=0), life_time=60.0,
+            persistent_lines=True)
+            time.sleep(.02)
+            found_road = True
+            found_junction = False
+            current_yaw = abs(waypoint.transform.rotation.yaw)
+            next_yaw = abs(next_waypoint.transform.rotation.yaw)
+            direction = self.get_direction(current_yaw, next_yaw)
+            high_level_plan.append((road_id, 'Road', direction))
+
+
+    # Add last command as stop
+    high_level_plan.append("STOP")
+
+    return high_level_plan
+  """
+  def get_direction(self, current_yaw, next_yaw):
+    # Calculate the difference in yaw
+    current_yaw = current_yaw 
+    next_yaw = next_yaw 
+
+    print("current yaw: ", current_yaw)
+    print("next yaw: ", next_yaw)
+
+    # Calculate the difference in yaw
+    yaw_diff = (next_yaw - current_yaw)
+
+    print("yaw diff: ", yaw_diff)
+
+    # Determine direction based on yaw difference
+    if yaw_diff > 1:
+        return 'LEFT'
+    elif yaw_diff < -1:
+        return 'RIGHT'
+    else:
+        return 'STRAIGHT'
 
 
   def find_intersections_directions_for_path(self): #must debug
