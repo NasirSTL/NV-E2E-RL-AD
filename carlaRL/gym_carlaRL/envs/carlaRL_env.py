@@ -30,6 +30,7 @@ from gym_carlaRL.envs.route_planner import RoutePlanner
 from gym_carlaRL.envs.misc import *
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/high_level_plan')
 from .high_level_plan import *
+from .high_level_plan import _plan
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -350,12 +351,12 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-        steer = self.ego.get_wheel_steer_angle() #add parameters
-        
-        path = plan(self.world, ego_trans.location)
+
+        path_plan = _plan(self.world, ego_trans.location, )
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
-        plan = path.get_high_level_plan()
+        plan = path_plan.get_high_level_plan()
+
         current_objective = plan[0] #usually (road or junction id, road or junction, command)
         if len(current_objective) ==1:
             command = "STOP"

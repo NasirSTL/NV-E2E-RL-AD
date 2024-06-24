@@ -19,13 +19,12 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
+sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla') 
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') 
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/global_route_planner') # tweak to where you put carla
 
 from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 from .route_planner import compute_connection_original
-import agents
 from agents.navigation.global_route_planner2 import GlobalRoutePlanner, RoadOption
 
 class node():
@@ -80,7 +79,7 @@ class node():
     def get_location_from_junctionid():
       return
     
-class plan():
+class _plan():
 
   def __init__(self, world, start, goal):
      self.world = world

@@ -44,7 +44,7 @@ def main():
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
-        'model_path': 'gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
+        'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
         'record_interval': 10,  # The interval in which to record the episode
         'collect': True,  # Whether to collect the data
     }
@@ -55,7 +55,7 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = 'v-e2e-rl-ad/verification/models/ppo_his/random_epi=4283_r=288.pth' #change path to where you have your lane following model
+    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/verification/models/ppo_his/random_epi=4283_r=288.pth' #change path to where you have your lane following model
     ppoAgent.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))) #add map location if you just want to use CPU
     ppoAgent.eval()
 
