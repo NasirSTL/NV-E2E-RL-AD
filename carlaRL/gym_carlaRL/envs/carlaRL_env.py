@@ -72,6 +72,8 @@ class CarlaEnv(gym.Env):
 
         # Record the time of total steps and resetting steps
         self.reset_step = 0
+
+        self.goal_pos = 0
         # self.total_step = 0
         # Initialize CARLA connection and environment setup
         self.setup_carla()
@@ -234,16 +236,29 @@ class CarlaEnv(gym.Env):
         self._set_synchronous_mode(False)
 
         # Spawn the ego vehicle
+        self.goal_pos = random.choice(self.spawn_points) #initial value out of statements (temp until train_controller is found)
+        
         if self.params['mode'] == 'test':
             # get a random index for the spawn points
             index = np.random.randint(0, len(self.spawn_points))
             start_pos = self.spawn_points[index]
             print(f'spawn location: {index}...')
+            
+            index2 = np.random.randint(0, len(self.spawn_points))
+            self.goal_pos = self.spawn_points[index2]
+            print(f'goal location: {index2}...')
+        
         elif self.params['mode'] == 'train':
             if self.reset_step > 500:
                 start_pos = random.choice(self.spawn_points)
+                self.goal_pos = random.choice(self.spawn_points)
             else:
                 start_pos = self.spawn_points[self.straight_spawn_loc]
+                self.goal_pos = random.choice(self.spawn_points)
+        
+        
+        # check where train_controller mode is set 
+        
         elif self.params['mode'] == 'train_controller':
             if self.reset_step < 200:
                 self.start_type = 'straight'
@@ -351,14 +366,14 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-
-        path_plan = _plan(self.world, ego_trans.location, )
+        goal_position = self.goal_pos
+        path_plan = _plan(self.world, ego_trans.location, goal_position)
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
         plan = path_plan.get_high_level_plan()
 
         current_objective = plan[0] #usually (road or junction id, road or junction, command)
-        if len(current_objective) ==1:
+        if len(current_objective) == 1:
             command = "STOP"
         else: 
             command = current_objective[2]
@@ -427,6 +442,18 @@ class CarlaEnv(gym.Env):
         r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
         r_steer = -(r_steer / 0.04)  # normalize the steering
         """
+        if current_command == "STOP":
+            #speed = self.get_vehicle_speed()
+            # discourage throttle and encourage braking
+            throttle = self.ego.get_control().throttle #[0,1.0]
+            braking = self.ego.get_control().brake #[0,1.0]
+
+            if throttle != 0: #should not accelerate
+                r = r-1
+            
+            #determine brake reward based on distance to goal?
+            
+            r_brake = braking
 
         if current_command == RoadOption.LANEFOLLOW:
 
