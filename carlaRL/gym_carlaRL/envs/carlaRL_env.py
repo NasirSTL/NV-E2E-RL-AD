@@ -366,7 +366,7 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-        goal_position = self.goal_pos
+        goal_position = self.goal_pos.location
         path_plan = _plan(self.world, ego_trans.location, goal_position)
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
@@ -425,6 +425,9 @@ class CarlaEnv(gym.Env):
         # # Define how the reward is calculated based on the state
         # speed = self.get_vehicle_speed()
         # r_speed = -abs(speed - self.desired_speed)
+        #ego_loc = self.ego.get_transform().location
+        #goal_loc = self.goal_pos.location
+        #euclidean_dist = ego_loc.distance(goal_loc)
 
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command?
@@ -451,9 +454,32 @@ class CarlaEnv(gym.Env):
             if throttle != 0: #should not accelerate
                 r = r-1
             
-            #determine brake reward based on distance to goal?
+            r_brake = 1 - braking #encourage smaller breaking more than larger breaking, unless very close to goal
             
-            r_brake = braking
+            ego_loc = self.ego.get_transform().location
+            goal_loc = self.goal_pos.location
+            euclidean_dist = ego_loc.distance(goal_loc)
+            if euclidean_dist < 3:
+                r_brake = braking
+            
+            r = r + r_brake
+
+        if current_command == RoadOption.STRAIGHT:
+            # reward for out of lane
+            dis = abs(vehicle_state[0])
+            r_out = 0
+            if dis > self.params['out_lane_thres']:
+                r_out = -1
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+            r = 1 + dis
+
+            #penalize for steering left or right
+            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
+            if steer > .1 or steer < .1:
+                r_steer = -2
+            else: r_steer = 1
+            r = r + r_steer
+
 
         if current_command == RoadOption.LANEFOLLOW:
 
@@ -519,7 +545,7 @@ class CarlaEnv(gym.Env):
         print("reward for step is: ", r)
         return r
 
-    def is_done(self, obs):  #stop episode if collision, max timestep, out of lane?
+    def is_done(self, obs):  #stop episode if collision, max timestep, out of lane, reach goal
         ego_x, ego_y = get_pos(self.ego)
 
         # if collides
@@ -530,6 +556,11 @@ class CarlaEnv(gym.Env):
         if self.time_step > self.params['max_time_episode']:
             return True
         
+        ego_loc = self.ego.get_transform().location
+        goal_loc = self.goal_pos.location
+        euclidean_dist = ego_loc.distance(goal_loc)
+        if euclidean_dist <= 0:
+            return True
 
         # Will need to change for lane change maneuvers
         # If out of lane
