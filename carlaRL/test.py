@@ -7,9 +7,20 @@ import torch
 from gym_carlaRL.envs.carlaRL_env import CarlaEnv
 from gym_carlaRL.agent.ppo_agent import ActorCritic
 
+import glob
+import os
+import sys
+try:
+    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'DEVICE: {DEVICE}')
+
 
 
 def main():
@@ -37,6 +48,7 @@ def main():
         'record_interval': 10,  # The interval in which to record the episode
         'collect': True,  # Whether to collect the data
     }
+    print("test.py started")
 
     # Initialize the CarlaEnv environment with the specified parameters
     env = gym.make('CarlaRL-v0', params=params)

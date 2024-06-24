@@ -8,11 +8,23 @@ import sys
 import xml.etree.ElementTree as ET
 import networkx as nx
 import math
+
+import glob
+import os
+import sys
+try:
+    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') 
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/global_route_planner') # tweak to where you put carla
 
-from misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
-from route_planner import compute_connection_original
+from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
+from .route_planner import compute_connection_original
 import agents
 from agents.navigation.global_route_planner2 import GlobalRoutePlanner, RoadOption
 

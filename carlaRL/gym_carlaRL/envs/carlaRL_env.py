@@ -14,8 +14,7 @@ import warnings
 import os
 from collections import deque
 import sys
-
-from agents.navigation.local_planner import RoadOption
+from enum import IntEnum
 
 # Suppress all warnings
 warnings.filterwarnings("ignore")
@@ -29,9 +28,24 @@ from gym_carlaRL.envs.ufld.model.model_culane import parsingNet
 from gym_carlaRL.envs.carla_util import *
 from gym_carlaRL.envs.route_planner import RoutePlanner
 from gym_carlaRL.envs.misc import *
-from high_level_plan import *
+sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/high_level_plan')
+from .high_level_plan import *
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+
+class RoadOption(IntEnum):
+    """
+    RoadOption represents the possible topological configurations when moving from a segment of lane to other.
+
+    """
+    VOID = -1
+    LEFT = 1
+    RIGHT = 2
+    STRAIGHT = 3
+    LANEFOLLOW = 4
+    CHANGELANELEFT = 5
+    CHANGELANERIGHT = 6
 
 class CarlaEnv(gym.Env):
     def __init__(self, params):
@@ -398,18 +412,22 @@ class CarlaEnv(gym.Env):
 
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command?
+        print("current command is: ", current_command)
         r = 0
 
         r_collision = 0
         if len(self.collision_hist) > 0:
-            r_collision = -1
+            r_collision = -5
 
         r = r + r_collision
 
+        """
+        # reward for steering:
+        r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
+        r_steer = -(r_steer / 0.04)  # normalize the steering
+        """
+
         if current_command == RoadOption.LANEFOLLOW:
-            # reward for steering:
-            r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
-            r_steer = -(r_steer / 0.04)  # normalize the steering
 
             # reward for out of lane
             dis = abs(vehicle_state[0])
@@ -442,6 +460,35 @@ class CarlaEnv(gym.Env):
 
             r = 1 + dis
 
+        if current_command == RoadOption.LEFT:
+            # reward for steering:
+            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
+            if steer < 0 and steer > -.5:
+                r_steer = 2
+            if steer > 0:
+                r_steer = -3
+            else: r_steer = -2
+            
+            #check if this also works for lanes that are turning
+            dis = abs(vehicle_state[0])
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+            r = 1 + dis + r_steer
+        
+        if current_command == RoadOption.RIGHT:
+            # reward for steering:
+            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
+            if steer > 0 and steer < .5:
+                r_steer = 2
+            if steer < 0:
+                r_steer = -3
+            else: r_steer = -2
+            
+            #check if this also works for lanes that are turning
+            dis = abs(vehicle_state[0])
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+            r = 1 + dis + r_steer
+
+        print("reward for step is: ", r)
         return r
 
     def is_done(self, obs):  #stop episode if collision, max timestep, out of lane?
@@ -455,6 +502,8 @@ class CarlaEnv(gym.Env):
         if self.time_step > self.params['max_time_episode']:
             return True
         
+
+        # Will need to change for lane change maneuvers
         # If out of lane
         vehicle_state = obs['vehicle_state']
         dis = abs(vehicle_state[0])

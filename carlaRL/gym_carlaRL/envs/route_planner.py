@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 sys.path.append('C:/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') # tweak to where you put carla
 
-from misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
+from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 
 class RoadOption(Enum):
   """
