@@ -98,18 +98,27 @@ class _plan():
     grp = GlobalRoutePlanner(self.map, sampling_resolution)
     route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
     high_level_plan = []
-    current_command = RoadOption.LANEFOLLOW
-    high_level_plan.append((route[0][0].road_id, 'Road', RoadOption.LANEFOLLOW))
-
+    current_command = route[0][1]
+        
     for i in range(len(route)):
-      waypoint, command = route[0]
+      waypoint, command = route[i]
 
-      if command == RoadOption.LANEFOLLOW and waypoint.is_junction and command != current_command and current_command != RoadOption.STRAIGHT:
-        high_level_plan.append((waypoint.road_id, 'Road', RoadOption.STRAIGHT))
+      if waypoint.is_junction and command == RoadOption.LANEFOLLOW and current_command != RoadOption.STRAIGHT:
+        high_level_plan.append((waypoint.junction_id, 'Junction', RoadOption.STRAIGHT))
         current_command = RoadOption.STRAIGHT
-      elif current_command != command and command != RoadOption.CHANGELANELEFT and command != RoadOption.CHANGELANERIGHT:
-        high_level_plan.append((waypoint.road_id, 'Road', command))
-        current_command =command
+        print("Straight")
+
+      elif current_command != command:
+        if command == RoadOption.CHANGELANERIGHT or command == RoadOption.CHANGELANELEFT:
+           high_level_plan.append((waypoint.road_id, 'Road', RoadOption.LANEFOLLOW))
+           current_command = RoadOption.LANEFOLLOW
+           print("Lanefollow")
+
+        else:
+           high_level_plan.append((waypoint.road_id, 'Road', command))
+           current_command = command
+           print(command)
+
 
     # Add last command as stop
     high_level_plan.append("STOP")

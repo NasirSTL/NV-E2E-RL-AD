@@ -376,7 +376,7 @@ class CarlaEnv(gym.Env):
         path_plan = _plan(self.world, ego_trans.location, goal_position)
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
-        plan = path_plan.get_high_level_plan2()
+        plan = path_plan.get_high_level_plan2()        
 
         current_objective = plan[0] #usually (road or junction id, road or junction, command)
         if len(current_objective) == 1:
