@@ -63,6 +63,7 @@ class CarlaEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'actor_input': spaces.Box(low=0, high=255, shape=(self.params['display_size'][1], self.params['display_size'][0], 3), dtype=np.uint8), 
             'vehicle_state': spaces.Box(np.array([-2, -1]), np.array([2, 1]), dtype=np.float64),  # lateral_distance, -delta_yaw
+            'command': spaces.Discrete(5), #stop, lane follow, straight, right, left
             })
 
         # Define action space
@@ -374,9 +375,17 @@ class CarlaEnv(gym.Env):
 
         current_objective = plan[0] #usually (road or junction id, road or junction, command)
         if len(current_objective) == 1:
-            command = "STOP"
+            command = 5 #stop
         else: 
             command = current_objective[2]
+            if command == RoadOption.LANEFOLLOW:
+                command = 4
+            elif command == RoadOption.STRAIGHT:
+                command = 3
+            elif command == RoadOption.RIGHT:
+                command = 2
+            else:
+                command = 1
 
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -415,7 +424,8 @@ class CarlaEnv(gym.Env):
 
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
-            'command': command, 'path': plan, 'vehicle_state': v_state,
+            'vehicle_state': v_state,
+            'command': command,
         }
 
         return obs
@@ -445,7 +455,7 @@ class CarlaEnv(gym.Env):
         r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
         r_steer = -(r_steer / 0.04)  # normalize the steering
         """
-        if current_command == "STOP":
+        if current_command == 5: #coming towards goal, command is stop
             #speed = self.get_vehicle_speed()
             # discourage throttle and encourage braking
             throttle = self.ego.get_control().throttle #[0,1.0]
@@ -464,24 +474,7 @@ class CarlaEnv(gym.Env):
             
             r = r + r_brake
 
-        if current_command == RoadOption.STRAIGHT:
-            # reward for out of lane
-            dis = abs(vehicle_state[0])
-            r_out = 0
-            if dis > self.params['out_lane_thres']:
-                r_out = -1
-            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-            r = 1 + dis
-
-            #penalize for steering left or right
-            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
-            if steer > .1 or steer < .1:
-                r_steer = -2
-            else: r_steer = 1
-            r = r + r_steer
-
-
-        if current_command == RoadOption.LANEFOLLOW:
+        elif current_command == 4: #lanefollow
 
             # reward for out of lane
             dis = abs(vehicle_state[0])
@@ -513,13 +506,29 @@ class CarlaEnv(gym.Env):
             # r_lat = - abs(self.ego.get_control().steer) * lspeed_lon**2  # discourage high steering commands at high speeds
 
             r = 1 + dis
+        
+        elif current_command == 3: #go straight through junction
+            # reward for out of lane
+            dis = abs(vehicle_state[0])
+            r_out = 0
+            if dis > self.params['out_lane_thres']:
+                r_out = -1
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+            r = 1 + dis
 
-        if current_command == RoadOption.LEFT:
+            #penalize for steering left or right
+            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
+            if steer > .1 or steer < .1:
+                r_steer = -2
+            else: r_steer = 1
+            r = r + r_steer
+
+        elif current_command == 2: # go right 
             # reward for steering:
             steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
-            if steer < 0 and steer > -.5:
+            if steer > 0 and steer < .5:
                 r_steer = 2
-            if steer > 0:
+            if steer < 0:
                 r_steer = -3
             else: r_steer = -2
             
@@ -527,13 +536,13 @@ class CarlaEnv(gym.Env):
             dis = abs(vehicle_state[0])
             dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
             r = 1 + dis + r_steer
-        
-        if current_command == RoadOption.RIGHT:
+
+        else: # go left
             # reward for steering:
             steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
-            if steer > 0 and steer < .5:
+            if steer < 0 and steer > -.5:
                 r_steer = 2
-            if steer < 0:
+            if steer > 0:
                 r_steer = -3
             else: r_steer = -2
             
