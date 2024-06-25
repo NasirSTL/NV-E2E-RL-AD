@@ -357,6 +357,11 @@ class CarlaEnv(gym.Env):
         return np.linalg.norm(carla_vec_to_np_array(self.ego.get_velocity()))
     
     def get_observations(self):
+        
+        print()
+        print("in get_observations")
+        print()
+
         obs = {}
         speed = self.get_vehicle_speed()
         ego_trans = self.ego.get_transform()
@@ -371,13 +376,14 @@ class CarlaEnv(gym.Env):
         path_plan = _plan(self.world, ego_trans.location, goal_position)
 
         #based on plan (where you currently are, what steps to take to get to goal), receive command
-        plan = path_plan.get_high_level_plan()
+        plan = path_plan.get_high_level_plan2()
 
         current_objective = plan[0] #usually (road or junction id, road or junction, command)
         if len(current_objective) == 1:
             command = 5 #stop
         else: 
             command = current_objective[2]
+            print("plan says command is: ", command)
             if command == RoadOption.LANEFOLLOW:
                 command = 4
             elif command == RoadOption.STRAIGHT:
@@ -443,6 +449,7 @@ class CarlaEnv(gym.Env):
         current_command = obs['command'] #does the car steer according to the command?
         print("current command is: ", current_command)
         r = 0
+        print("current steer is: ",  self.ego.get_control().steer)
 
         r_collision = 0
         if len(self.collision_hist) > 0:
@@ -491,7 +498,6 @@ class CarlaEnv(gym.Env):
             # delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
             # print(f'dis: {dis}; delta_yaw: {delta_yaw}')
         
-
             # # longitudinal speed
             # v = self.ego.get_velocity()
             # lspeed = np.array([v.x, v.y])
@@ -518,7 +524,7 @@ class CarlaEnv(gym.Env):
 
             #penalize for steering left or right
             steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
-            if steer > .1 or steer < .1:
+            if steer > .05 or steer < -.05:
                 r_steer = -2
             else: r_steer = 1
             r = r + r_steer
@@ -571,6 +577,7 @@ class CarlaEnv(gym.Env):
         if euclidean_dist <= 0:
             return True
 
+        """
         # Will need to change for lane change maneuvers
         # If out of lane
         vehicle_state = obs['vehicle_state']
@@ -579,6 +586,7 @@ class CarlaEnv(gym.Env):
             return True
         
         return False
+        """
     
     def process_image(self, image):
         if not isinstance(image, np.ndarray):

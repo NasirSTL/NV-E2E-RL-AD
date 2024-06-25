@@ -22,8 +22,8 @@ import carla #the sim library itself
 #from agents.navigation.global_route_planner import GlobalRoutePlanner must debug
 
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/high_level_plan')
-from high_level_plan import graph, plan
-from high_level_plan import *
+#from high_level_plan import graph, plan
+#from high_level_plan import *
 
 if __name__ == '__main__':
     # connect to the sim 
@@ -32,10 +32,13 @@ if __name__ == '__main__':
     world = client.get_world()
     client.set_timeout(2000.0)
     spectator = world.get_spectator()
-    client.load_world('Town04')
+    client.load_world('Town05')
 
-    
-    # get map look at the map
+
+
+
+    """
+     # get map look at the map
     town_map = world.get_map()
 
     all_waypoints = town_map.generate_waypoints(2.0)
@@ -62,6 +65,7 @@ if __name__ == '__main__':
 
 
     print(path_list)
+    """
     
     
     

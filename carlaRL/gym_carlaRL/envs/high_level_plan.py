@@ -89,12 +89,43 @@ class _plan():
      self.start = start
 
 
+
+
+
+
+  def get_high_level_plan2(self):
+    sampling_resolution = 1
+    grp = GlobalRoutePlanner(self.map, sampling_resolution)
+    route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
+    high_level_plan = []
+    current_command = RoadOption.LANEFOLLOW
+    high_level_plan.append((route[0][0].road_id, 'Road', RoadOption.LANEFOLLOW))
+
+    for i in range(len(route)):
+      waypoint, command = route[0]
+
+      if command == RoadOption.LANEFOLLOW and waypoint.is_junction and command != current_command and current_command != RoadOption.STRAIGHT:
+        high_level_plan.append((waypoint.road_id, 'Road', RoadOption.STRAIGHT))
+        current_command = RoadOption.STRAIGHT
+      elif current_command != command and command != RoadOption.CHANGELANELEFT and command != RoadOption.CHANGELANERIGHT:
+        high_level_plan.append((waypoint.road_id, 'Road', command))
+        current_command =command
+
+    # Add last command as stop
+    high_level_plan.append("STOP")
+
+    return high_level_plan
+
+
+
+
   def get_high_level_plan(self):
 
     # Get the route as a list of road and junction IDs
     sampling_resolution = 1
     grp = GlobalRoutePlanner(self.map, sampling_resolution)
     route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
+    
 
     """ for debug
     for i in route:
@@ -105,10 +136,14 @@ class _plan():
 
     high_level_plan = []
 
+    print("going through plan")
     waypoint, current_command = route[0]
     if current_command != RoadOption.CHANGELANELEFT and current_command != RoadOption.CHANGELANERIGHT:
       if waypoint.is_junction:
         high_level_plan.append((waypoint.junction_id, 'Junction', current_command))
+        if current_command == RoadOption.LANEFOLLOW:
+           print("IN JUNCTION BUT COMMAND IS LANEFOLLOW")
+        
         #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
         #persistent_lines=True)
         #time.sleep(.2)
@@ -120,6 +155,7 @@ class _plan():
 
     for i in range(1, len(route)):
       waypoint, new_command = route[i]
+      print(new_command)
       if new_command == RoadOption.LEFT and new_command != current_command:
               current_command == new_command
               high_level_plan.append((waypoint.junction_id, 'Junction', new_command))

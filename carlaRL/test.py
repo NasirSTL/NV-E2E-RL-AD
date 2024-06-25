@@ -27,7 +27,7 @@ def main():
     params = {
         'host': 'localhost',  # '104.51.58.17',
         'port': 2000,  # The port where your CARLA server is running
-        'town': 'Town04',  # The map to use
+        'town': 'Town05',  # The map to use
         'mode': 'test',  # The mode to run the environment in
         'algo' : 'ppo',  # this decides how the image is processed
         'controller_version': 1,  # The version of the controller to use
