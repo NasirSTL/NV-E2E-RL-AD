@@ -104,23 +104,18 @@ class _plan():
       waypoint, command = route[i]
 
       if waypoint.is_junction and command == RoadOption.LANEFOLLOW and current_command != RoadOption.STRAIGHT:
-        high_level_plan.append((waypoint.junction_id, 'Junction', RoadOption.STRAIGHT))
+        high_level_plan.append([waypoint.transform.location, RoadOption.STRAIGHT])
         current_command = RoadOption.STRAIGHT
-        print("Straight")
 
       elif current_command != command:
         if command == RoadOption.CHANGELANERIGHT or command == RoadOption.CHANGELANELEFT:
-           high_level_plan.append((waypoint.road_id, 'Road', RoadOption.LANEFOLLOW))
+           high_level_plan.append([waypoint.transform.location, RoadOption.LANEFOLLOW])
            current_command = RoadOption.LANEFOLLOW
-           print("Lanefollow")
 
         else:
-           high_level_plan.append((waypoint.road_id, 'Road', command))
+           high_level_plan.append([waypoint.transform.location, command])
            current_command = command
-           print(command)
 
-
-    # Add last command as stop
     high_level_plan.append("STOP")
 
     return high_level_plan
