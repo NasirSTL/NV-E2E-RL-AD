@@ -33,6 +33,8 @@ For codes and documentations of the engineering parts of the f1tenth vehicle in 
     ```Shell
     pip install -r requirements.txt
     ```
+    
+4. Place global_route_planner2_for_navigation.py in PythonAPI/carla/agents/navigation and rename it as global_route_planner2.py
 
 ## Getting Started
 
