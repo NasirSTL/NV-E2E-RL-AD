@@ -7,7 +7,6 @@ import gymnasium as gym
 import argparse
 
 from enum import Enum
-from carlaRL.utils import blockPrint, enablePrint
 from gym_carlaRL.envs.carlaRL_env import CarlaEnv
 from gym_carlaRL.agent.ppo_agent import ActorCritic
 from utils import *
@@ -17,6 +16,16 @@ import sys, os
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'DEVICE: {DEVICE}')
+
+
+
+# Disable print
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore print
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 
 def main(args):
@@ -53,7 +62,7 @@ def main(args):
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
-        'model_path': 'gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
+        'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
         'record_interval': 10,  # The interval in which to record the episode
         'restriction': 40 if args.curriculum else STEPS, 
         'collect': False,

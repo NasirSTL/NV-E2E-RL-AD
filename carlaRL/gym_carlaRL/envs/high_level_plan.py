@@ -21,7 +21,7 @@ except IndexError:
     pass
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla') 
 sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') 
-sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/global_route_planner') # tweak to where you put carla
+sys.path.append('C:/carla/WindowsNoEditor/PythonAPI/carla/agents/navigation/global_route_planner2') # tweak to where you put carla
 
 from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 from .route_planner import compute_connection_original

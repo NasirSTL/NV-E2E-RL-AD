@@ -229,6 +229,7 @@ class CarlaEnv(gym.Env):
         return new_obs, reward, done, info
 
     def reset(self):
+        print("called reset")
         self.reset_step+=1
 
         self.destroy_all_actors()
@@ -239,6 +240,7 @@ class CarlaEnv(gym.Env):
         # Spawn the ego vehicle
         self.goal_pos = random.choice(self.spawn_points) #initial value out of statements (temp until train_controller is found)
         
+        print("getting new starting point and goal for episode")
         if self.params['mode'] == 'test':
             # get a random index for the spawn points
             index = np.random.randint(0, len(self.spawn_points))
@@ -278,6 +280,14 @@ class CarlaEnv(gym.Env):
                     start_pos = self.spawn_points[self.spawn_loc]
                     self.spawn_loc = self.spawn_locs[(self.spawn_locs.index(self.spawn_loc) + 1) % len(self.spawn_locs)]
                     print(f'\n ***challenge spawn location: {self.spawn_loc}...')
+
+
+        print("now getting plan for episode")
+        goal_position = self.goal_pos.location
+        path_plan = _plan(self.world, start_pos.location, goal_position)
+        #based on plan (where you currently are, what steps to take to get to goal), receive command
+        self.plan = path_plan.get_high_level_plan2()
+
 
         blueprint_library = self.world.get_blueprint_library()
         ego_vehicle_bp = blueprint_library.find('vehicle.tesla.model3')
@@ -372,24 +382,20 @@ class CarlaEnv(gym.Env):
         lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-        goal_position = self.goal_pos.location
-        path_plan = _plan(self.world, ego_trans.location, goal_position)
-
-        #based on plan (where you currently are, what steps to take to get to goal), receive command
-        plan = path_plan.get_high_level_plan2()
-        if len(plan) == 1:
+        
+        if len(self.plan) == 1:
             command = 5
         else:
 
-            current_objective = plan[0] #usually (location, command)
-            next_objective = plan[1] 
+            current_objective = self.plan[0] #usually (location, command)
+            next_objective = self.plan[1] 
 
             ego_loc = ego_trans.location
             #compare next plan location to ego location to see if need to switch command
             euclidean_dist = ego_loc.distance(next_objective[0])
             if euclidean_dist < 1:
                 command = next_objective[1]
-                plan.pop(0)
+                self.plan.pop(0)
             else:
                 command = current_objective[1]
             print("plan says command is: ", command)
