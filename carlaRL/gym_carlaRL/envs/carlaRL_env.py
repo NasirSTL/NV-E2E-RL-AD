@@ -393,7 +393,7 @@ class CarlaEnv(gym.Env):
             ego_loc = ego_trans.location
             #compare next plan location to ego location to see if need to switch command
             euclidean_dist = ego_loc.distance(next_objective[0])
-            if euclidean_dist < 1.5:
+            if euclidean_dist < 2:
                 command = next_objective[1]
                 self.plan.pop(0)
             else:
@@ -482,15 +482,20 @@ class CarlaEnv(gym.Env):
         ego_waypoint = self.map.get_waypoint(self.ego.get_location())
         if ego_waypoint != None:
             if not ego_waypoint.is_junction:
-                lane_change_info = ego_waypoint.lane_change
-                if str(lane_change_info) == "Right" or str(lane_change_info) == "Both": 
+                right_lane = ego_waypoint.right_lane_marking
+                left_lane = ego_waypoint.left_lane_marking
+                print(str(right_lane.type))
+                print(str(left_lane.type))
+                print(str(right_lane.color))
+                print(str(left_lane.color))
+                if str(right_lane.type) == "Broken" and print(str(right_lane.color)) == "White": 
                     print("can go to right lane")
                 else:
                     print("can't go right")
                     if steer > .4:
                         r_steer = -3
                         r = r + r_steer
-                if str(lane_change_info) == "Left" or str(lane_change_info) == "Both": 
+                if str(left_lane.type) == "Broken" and str(left_lane.color) == "White": 
                     print("can go to left lane")
                 else:
                     print("can't go left")
@@ -569,9 +574,9 @@ class CarlaEnv(gym.Env):
 
         elif current_command == 2: # go right 
             # reward for steering:
-            if steer > 0 and steer < .5:
+            if steer > .05 and steer < .8:
                 r_steer = 2
-            if steer < 0:
+            if steer <= 0:
                 r_steer = -3
             else: r_steer = -2
             
@@ -582,9 +587,9 @@ class CarlaEnv(gym.Env):
 
         else: # go left
             # reward for steering:
-            if steer < 0 and steer > -.5:
+            if steer < -.05 and steer > -.8:
                 r_steer = 2
-            if steer > 0:
+            if steer >= 0:
                 r_steer = -3
             else: r_steer = -2
             

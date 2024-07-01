@@ -116,7 +116,7 @@ class _plan():
         else:
            high_level_plan.append([waypoint.transform.location, command])
            current_command = command
-    print(type(self.goal))
+
     high_level_plan.append([self.goal, "STOP"])
 
     return high_level_plan
