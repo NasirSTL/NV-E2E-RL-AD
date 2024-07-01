@@ -484,10 +484,6 @@ class CarlaEnv(gym.Env):
             if not ego_waypoint.is_junction:
                 right_lane = ego_waypoint.right_lane_marking
                 left_lane = ego_waypoint.left_lane_marking
-                print(str(right_lane.type))
-                print(str(left_lane.type))
-                print(str(right_lane.color))
-                print(str(left_lane.color))
                 if str(right_lane.type) == "Broken" and print(str(right_lane.color)) == "White": 
                     print("can go to right lane")
                 else:

@@ -89,10 +89,6 @@ class _plan():
      self.start = start
 
 
-
-
-
-
   def get_high_level_plan2(self):
     sampling_resolution = 1
     grp = GlobalRoutePlanner(self.map, sampling_resolution)
@@ -100,93 +96,37 @@ class _plan():
     high_level_plan = []
     current_command = route[0][1]
     high_level_plan.append([route[0][0].transform.location, RoadOption.LANEFOLLOW])
-        
+    j=0
+
     for i in range(len(route)):
       waypoint, command = route[i]
-
-      if waypoint.is_junction and command == RoadOption.LANEFOLLOW and current_command != RoadOption.STRAIGHT:
-        high_level_plan.append([waypoint.transform.location, RoadOption.STRAIGHT])
-        current_command = RoadOption.STRAIGHT
-
-      elif current_command != command:
-        if command == RoadOption.CHANGELANERIGHT or command == RoadOption.CHANGELANELEFT:
-           high_level_plan.append([waypoint.transform.location, RoadOption.LANEFOLLOW])
-           current_command = RoadOption.LANEFOLLOW
+      prev_loc, prev_command = high_level_plan[j-1]
+    
+      if command != RoadOption.CHANGELANELEFT and command != RoadOption.CHANGELANERIGHT:
+        if prev_loc.distance(waypoint.transform.location) < 1:
+         high_level_plan.pop(j-1)
+         high_level_plan.append([waypoint.transform.location, command])
 
         else:
-           high_level_plan.append([waypoint.transform.location, command])
-           current_command = command
+            if waypoint.is_junction and command == RoadOption.LANEFOLLOW and current_command != RoadOption.STRAIGHT:
+             high_level_plan.append([waypoint.transform.location, RoadOption.STRAIGHT])
+             current_command = RoadOption.STRAIGHT
+             j = j+1
+      
+            elif current_command != command:
+             if command == RoadOption.CHANGELANERIGHT or command == RoadOption.CHANGELANELEFT:
+                high_level_plan.append([waypoint.transform.location, RoadOption.LANEFOLLOW])
+                current_command = RoadOption.LANEFOLLOW
+                j = j+1
+             else:
+                high_level_plan.append([waypoint.transform.location, command])
+                current_command = command
+                j = j+1
 
     high_level_plan.append([self.goal, "STOP"])
 
     return high_level_plan
 
-
-
-
-  def get_high_level_plan(self):
-
-    # Get the route as a list of road and junction IDs
-    sampling_resolution = 1
-    grp = GlobalRoutePlanner(self.map, sampling_resolution)
-    route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
-    
-
-    """ for debug
-    for i in route:
-      self.world.debug.draw_string(i[0].transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=255, b=0), life_time=60.0,
-        persistent_lines=True)
-      time.sleep(.02)
-    """
-
-    high_level_plan = []
-
-    print("going through plan")
-    waypoint, current_command = route[0]
-    if current_command != RoadOption.CHANGELANELEFT and current_command != RoadOption.CHANGELANERIGHT:
-      if waypoint.is_junction:
-        high_level_plan.append((waypoint.junction_id, 'Junction', current_command))
-        if current_command == RoadOption.LANEFOLLOW:
-           print("IN JUNCTION BUT COMMAND IS LANEFOLLOW")
-        
-        #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
-        #persistent_lines=True)
-        #time.sleep(.2)
-      else:
-        high_level_plan.append((waypoint.road_id, 'Road', current_command))
-        #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
-        #persistent_lines=True)
-        #time.sleep(.2)
-
-    for i in range(1, len(route)):
-      waypoint, new_command = route[i]
-      print(new_command)
-      if new_command == RoadOption.LEFT and new_command != current_command:
-              current_command == new_command
-              high_level_plan.append((waypoint.junction_id, 'Junction', new_command))
-              #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
-              #persistent_lines=True)
-              #time.sleep(.2)
-      else:        
-       if current_command != new_command:
-         if new_command != RoadOption.CHANGELANELEFT and new_command != RoadOption.CHANGELANERIGHT:
-            current_command = new_command
-            if waypoint.is_junction:
-              high_level_plan.append((waypoint.junction_id, 'Junction', new_command))
-              #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
-              #persistent_lines=True)
-              #time.sleep(.2)
-
-            else:
-              high_level_plan.append((waypoint.road_id, 'Road', new_command))
-              #self.world.debug.draw_string(waypoint.transform.location, 'O', draw_shadow=False,color=carla.Color(r=0, g=0, b=255), life_time=60.0,
-              #persistent_lines=True)
-              #time.sleep(.2)
-
-   # Add last command as stop
-    high_level_plan.append("STOP")
-
-    return high_level_plan
 
   def find_intersections_directions_for_path(self): #must debug
     """
