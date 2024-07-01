@@ -334,7 +334,21 @@ class ActorCritic(nn.Module):
         batch_indices = np.arange(len(self.memory))
         _, _, _, _, rewards, dones, values, _ = self.memory.get(batch_indices)
 
+        """
+        print("IN compute_gae")
+        print("batch_indices: ", self.memory.get(batch_indices))
+        print("rewards: ", rewards)
+        print("dones: ", dones)
+        print("values: ", values)
+        """
+
         values4adv = np.append(values, self.last_value)  # Add the last value to the trajectory
+
+        """
+        print("values4adv: ", values4adv)
+        dones = np.where(dones == None, False, dones) #in case of Nonetype
+        print("dones: ", dones)
+        """
 
         deltas = rewards + (1-dones) * gamma * values4adv[1:] - values4adv[:-1]
 

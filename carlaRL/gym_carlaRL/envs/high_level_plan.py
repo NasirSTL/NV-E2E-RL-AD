@@ -99,6 +99,7 @@ class _plan():
     route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
     high_level_plan = []
     current_command = route[0][1]
+    high_level_plan.append([route[0][0].transform.location, RoadOption.LANEFOLLOW])
         
     for i in range(len(route)):
       waypoint, command = route[i]
@@ -115,8 +116,8 @@ class _plan():
         else:
            high_level_plan.append([waypoint.transform.location, command])
            current_command = command
-
-    high_level_plan.append("STOP")
+    print(type(self.goal))
+    high_level_plan.append([self.goal, "STOP"])
 
     return high_level_plan
 

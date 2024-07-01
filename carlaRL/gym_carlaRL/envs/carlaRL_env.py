@@ -113,8 +113,8 @@ class CarlaEnv(gym.Env):
         weather_presets = find_weather_presets()
         self.world.set_weather(weather_presets[self.params.get('weather', 6)][0])
         # self.weather = Weather(self.world.get_weather())
-
-        self.spawn_points = list(self.world.get_map().get_spawn_points())
+        self.map = self.world.get_map()
+        self.spawn_points = list(self.map.get_spawn_points())
         self.spawn_locs = [230, 341]  # specific locations to train for curve where lane detection is challenging
         self.spawn_loc = self.spawn_locs[0]
         self.straight_spawn_loc = 200
@@ -386,14 +386,14 @@ class CarlaEnv(gym.Env):
         if len(self.plan) == 1:
             command = 5
         else:
-
+            
             current_objective = self.plan[0] #usually (location, command)
             next_objective = self.plan[1] 
 
             ego_loc = ego_trans.location
             #compare next plan location to ego location to see if need to switch command
             euclidean_dist = ego_loc.distance(next_objective[0])
-            if euclidean_dist < 1:
+            if euclidean_dist < 1.5:
                 command = next_objective[1]
                 self.plan.pop(0)
             else:
@@ -472,11 +472,32 @@ class CarlaEnv(gym.Env):
 
         r = r + r_collision
 
+        steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
         """
         # reward for steering:
         r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
         r_steer = -(r_steer / 0.04)  # normalize the steering
         """
+
+        ego_waypoint = self.map.get_waypoint(self.ego.get_location())
+        if ego_waypoint != None:
+            if not ego_waypoint.is_junction:
+                lane_change_info = ego_waypoint.lane_change
+                if str(lane_change_info) == "Right" or str(lane_change_info) == "Both": 
+                    print("can go to right lane")
+                else:
+                    print("can't go right")
+                    if steer > .4:
+                        r_steer = -3
+                        r = r + r_steer
+                if str(lane_change_info) == "Left" or str(lane_change_info) == "Both": 
+                    print("can go to left lane")
+                else:
+                    print("can't go left")
+                    if steer < -.4:
+                        r_steer = -3
+                        r = r + r_steer
+
  
         if current_command == 5: #coming towards goal, command is stop
             #speed = self.get_vehicle_speed()
@@ -487,13 +508,12 @@ class CarlaEnv(gym.Env):
             if throttle != 0: #should not accelerate
                 r = r-1
             
-            r_brake = 1 - braking #encourage smaller breaking more than larger breaking, unless very close to goal
             
-            ego_loc = self.ego.get_transform().location
+            ego_loc = self.ego.get_location()
             goal_loc = self.goal_pos.location
             euclidean_dist = ego_loc.distance(goal_loc)
             if euclidean_dist < 3:
-                r_brake = braking
+                r_brake = 1-braking #encourage smaller breaking more than larger breaking
             
             r = r + r_brake
         
@@ -541,7 +561,6 @@ class CarlaEnv(gym.Env):
             r = 1 + dis
 
             #penalize for steering left or right
-            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
             if steer > .07 or steer < -.07:
                 r_steer = -1
             else: r_steer = .5
@@ -550,7 +569,6 @@ class CarlaEnv(gym.Env):
 
         elif current_command == 2: # go right 
             # reward for steering:
-            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
             if steer > 0 and steer < .5:
                 r_steer = 2
             if steer < 0:
@@ -564,7 +582,6 @@ class CarlaEnv(gym.Env):
 
         else: # go left
             # reward for steering:
-            steer = self.ego.get_control().steer #current steer [-1.0, 1.0]
             if steer < 0 and steer > -.5:
                 r_steer = 2
             if steer > 0:
@@ -580,6 +597,7 @@ class CarlaEnv(gym.Env):
         return r
 
     def is_done(self, obs):  #stop episode if collision, max timestep, out of lane, reach goal
+        print("reached is_done method")
         ego_x, ego_y = get_pos(self.ego)
 
         # if collides
@@ -603,9 +621,9 @@ class CarlaEnv(gym.Env):
         dis = abs(vehicle_state[0])
         if abs(dis) > self.params['out_lane_thres']:
             return True
-        
-        return False
         """
+        return False
+        
     
     def process_image(self, image):
         if not isinstance(image, np.ndarray):

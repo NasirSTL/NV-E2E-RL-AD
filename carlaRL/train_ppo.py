@@ -87,7 +87,7 @@ def main(args):
     training_log = {'episode': [], 'policy_loss': [], 'value_loss': [], 'episode_return': [], 'episode_length': [], 'policy_mean': [], 'policy_std': [], 'policy_entropy': []}
     best_return = -np.inf
 
-    blockPrint()
+    #blockPrint()
 
     restrict = params['restriction']
     for episode in range(EPISODES):
@@ -140,6 +140,7 @@ def main(args):
                         
         agent.finish_path(bootstrap_value)
         agent.compute_gae(gamma=args.gamma, lam=0.95)
+
         num_samples = ep_len
         indices = np.arange(num_samples)
         np.random.shuffle(indices)
