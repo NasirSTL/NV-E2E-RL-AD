@@ -506,7 +506,6 @@ class CarlaEnv(gym.Env):
             if throttle != 0: #should not accelerate
                 r = r-1
             
-            
             ego_loc = self.ego.get_location()
             goal_loc = self.goal_pos.location
             euclidean_dist = ego_loc.distance(goal_loc)
@@ -550,37 +549,49 @@ class CarlaEnv(gym.Env):
             if len(self.plan) > 1 and (next_objective[1] == RoadOption.LEFT or next_objective[1] == RoadOption.RIGHT):
               print("have an upcoming turn: ", next_objective[1])
               if right_lane_change and next_objective[1] == RoadOption.RIGHT:
-                  if steer > 0:
+                  if steer > .7:
+                      r_steer = -1
+                      r = r + r_steer
+                  elif steer > .1:
                       r_steer = 1
                       r = r + r_steer
                   else: 
-                      r_steer = -1
+                      r_steer = -2
                       r = r + r_steer
 
               elif left_lane_change and next_objective[1] == RoadOption.LEFT:
-                  if steer < 0:
+                  if steer < -.7:
+                      r_steer = -1
+                      r = r + r_steer
+                  elif steer < -.1:
                       r_steer = 1
                       r = r + r_steer
                   else: 
-                      r_steer = -1
+                      r_steer = -2
                       r = r + r_steer
             
             # otherwise punish for going too slow. Want to encourage lane change 
             elif lspeed_lon < self.desired_speed and (right_lane_change or left_lane_change):
               print("going too slow, but lane change is possible")
               if right_lane_change:
-                  if steer > 0:
+                  if steer > .7:
+                      r_steer = -1
+                      r = r + r_steer
+                  elif steer > .1:
                       r_steer = 1
                       r = r + r_steer
                   else: 
-                      r_steer = -1
+                      r_steer = -.5
                       r = r + r_steer
               elif left_lane_change:
-                  if steer < 0:
+                  if steer < -.7:
+                      r_steer = -1
+                      r = r + r_steer
+                  elif steer < -.1:
                       r_steer = 1
                       r = r + r_steer
                   else: 
-                      r_steer = -1
+                      r_steer = -.5
                       r = r + r_steer
 
             else: #either our speed is fine or a lane change is not possible now (or dont have upcoming turn)
@@ -607,19 +618,19 @@ class CarlaEnv(gym.Env):
                 r_steer = -1
                 r = r + r_steer
             else: 
-                r_steer = .5
+                r_steer = 1
                 r = r + r_steer
 
         elif current_command == 2: # go right 
             # reward for steering:
-            if steer > .05 and steer < .8:
-                r_steer = 2
+            if steer > .1 and steer < .7:
+                r_steer = 1
                 r = r + r_steer
             if steer <= 0:
-                r_steer = -3
+                r_steer = -2
                 r = r + r_steer
             else: 
-                r_steer = -2
+                r_steer = -1
                 r = r + r_steer
             
             #check if this also works for lanes that are turning
@@ -629,14 +640,14 @@ class CarlaEnv(gym.Env):
 
         else: # go left
             # reward for steering:
-            if steer < -.05 and steer > -.8:
-                r_steer = 2
+            if steer < -.1 and steer > -.7:
+                r_steer = 1
                 r = r + r_steer
             if steer >= 0:
-                r_steer = -3
+                r_steer = -2
                 r = r + r_steer
             else: 
-                r_steer = -2
+                r_steer = -1
                 r = r + r_steer
             
             #check if this also works for lanes that are turning
