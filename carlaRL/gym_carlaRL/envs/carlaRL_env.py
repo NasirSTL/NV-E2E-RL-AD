@@ -63,7 +63,7 @@ class CarlaEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'actor_input': spaces.Box(low=0, high=255, shape=(self.params['display_size'][1], self.params['display_size'][0], 3), dtype=np.uint8), 
             'vehicle_state': spaces.Box(np.array([-2, -1]), np.array([2, 1]), dtype=np.float64),  # lateral_distance, -delta_yaw
-            'command': spaces.Discrete(5), #stop, lane follow, straight, right, left
+            'command': spaces.Discrete(5), 'next_command': spaces.Discrete(6) #stop, lane follow, straight, right, left, None
             })
 
         # Define action space
@@ -385,6 +385,7 @@ class CarlaEnv(gym.Env):
         
         if len(self.plan) == 1:
             command = 5
+            next_command = 6 #None
         else:
             
             current_objective = self.plan[0] #usually (location, command)
@@ -396,8 +397,15 @@ class CarlaEnv(gym.Env):
             if euclidean_dist < 2:
                 command = next_objective[1]
                 self.plan.pop(0)
+                if len(self.plan) == 1:
+                    next_command = 6 #None
+                else:
+                    next_objective = self.plan[1] 
+                    next_command = next_objective[1]
+
             else:
                 command = current_objective[1]
+                next_command = next_objective[1]
             print("plan says command is: ", command)
             if command == RoadOption.LANEFOLLOW:
                 command = 4
@@ -407,6 +415,16 @@ class CarlaEnv(gym.Env):
                 command = 2
             else:
                 command = 1
+            
+            if next_command == RoadOption.LANEFOLLOW:
+                next_command = 4
+            elif next_command == RoadOption.STRAIGHT:
+                next_command = 3
+            elif next_command == RoadOption.RIGHT:
+                next_command = 2
+            else:
+                next_command = 1
+            
 
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -446,7 +464,7 @@ class CarlaEnv(gym.Env):
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
             'vehicle_state': v_state,
-            'command': command,
+            'command': command, 'next_command': next_command
         }
 
         return obs
@@ -467,6 +485,7 @@ class CarlaEnv(gym.Env):
 
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command?
+        next_command = obs['next_command']
         print("current command is: ", current_command)
         r = 0
         print("current steer is: ",  self.ego.get_control().steer)
@@ -474,8 +493,7 @@ class CarlaEnv(gym.Env):
         r_collision = 0
         if len(self.collision_hist) > 0:
             r_collision = -5
-
-        r = r + r_collision
+            r = r + r_collision
 
         steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
  
@@ -493,9 +511,8 @@ class CarlaEnv(gym.Env):
             goal_loc = self.goal_pos.location
             euclidean_dist = ego_loc.distance(goal_loc)
             if euclidean_dist < 3:
-                r_brake = 1-braking #encourage smaller breaking more than larger breaking
-            
-            r = r + r_brake
+                r_brake = 1-braking #encourage smaller breaking more than larger breaking  
+                r = r + r_brake
         
         if current_command == 4: #lanefollow
             ego_trans = self.ego.get_transform()
@@ -535,13 +552,18 @@ class CarlaEnv(gym.Env):
               if right_lane_change and next_objective[1] == RoadOption.RIGHT:
                   if steer > 0:
                       r_steer = 1
-                  else: r_steer = -1
-                  r = r + r_steer
+                      r = r + r_steer
+                  else: 
+                      r_steer = -1
+                      r = r + r_steer
+
               elif left_lane_change and next_objective[1] == RoadOption.LEFT:
                   if steer < 0:
                       r_steer = 1
-                  else: r_steer = -1
-                  r = r + r_steer
+                      r = r + r_steer
+                  else: 
+                      r_steer = -1
+                      r = r + r_steer
             
             # otherwise punish for going too slow. Want to encourage lane change 
             elif lspeed_lon < self.desired_speed and (right_lane_change or left_lane_change):
@@ -549,13 +571,17 @@ class CarlaEnv(gym.Env):
               if right_lane_change:
                   if steer > 0:
                       r_steer = 1
-                  else: r_steer = -1
-                  r = r + r_steer
+                      r = r + r_steer
+                  else: 
+                      r_steer = -1
+                      r = r + r_steer
               elif left_lane_change:
                   if steer < 0:
                       r_steer = 1
-                  else: r_steer = -1
-                  r = r + r_steer
+                      r = r + r_steer
+                  else: 
+                      r_steer = -1
+                      r = r + r_steer
 
             else: #either our speed is fine or a lane change is not possible now (or dont have upcoming turn)
                 # reward for out of lane 
@@ -564,8 +590,7 @@ class CarlaEnv(gym.Env):
                 if dis > self.params['out_lane_thres']:
                     r_out = -1
                 dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-
-            r = 1 + dis
+                r = 1 + dis
         
         elif current_command == 3: #go straight through junction
             # reward for out of lane
@@ -580,35 +605,44 @@ class CarlaEnv(gym.Env):
             #penalize for steering left or right
             if steer > .07 or steer < -.07:
                 r_steer = -1
-            else: r_steer = .5
-            r = r + r_steer
-            print(r)
+                r = r + r_steer
+            else: 
+                r_steer = .5
+                r = r + r_steer
 
         elif current_command == 2: # go right 
             # reward for steering:
             if steer > .05 and steer < .8:
                 r_steer = 2
+                r = r + r_steer
             if steer <= 0:
                 r_steer = -3
-            else: r_steer = -2
+                r = r + r_steer
+            else: 
+                r_steer = -2
+                r = r + r_steer
             
             #check if this also works for lanes that are turning
             dis = abs(vehicle_state[0])
             dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-            r = 1 + dis + r_steer
+            r = 1 + dis
 
         else: # go left
             # reward for steering:
             if steer < -.05 and steer > -.8:
                 r_steer = 2
+                r = r + r_steer
             if steer >= 0:
                 r_steer = -3
-            else: r_steer = -2
+                r = r + r_steer
+            else: 
+                r_steer = -2
+                r = r + r_steer
             
             #check if this also works for lanes that are turning
             dis = abs(vehicle_state[0])
             dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-            r = 1 + dis + r_steer
+            r = 1 + dis
 
         print("reward for step is: ", r)
         return r
