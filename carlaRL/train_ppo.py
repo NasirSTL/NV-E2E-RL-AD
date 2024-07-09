@@ -11,21 +11,11 @@ from gym_carlaRL.envs.carlaRL_env import CarlaEnv
 from gym_carlaRL.agent.ppo_agent import ActorCritic
 from utils import *
 
-import sys, os
+import os
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f'DEVICE: {DEVICE}')
-
-
-
-# Disable print
-def blockPrint():
-    sys.stdout = open(os.devnull, 'w')
-
-# Restore print
-def enablePrint():
-    sys.stdout = sys.__stdout__
 
 
 def main(args):
@@ -87,7 +77,7 @@ def main(args):
     training_log = {'episode': [], 'policy_loss': [], 'value_loss': [], 'episode_return': [], 'episode_length': [], 'policy_mean': [], 'policy_std': [], 'policy_entropy': []}
     best_return = -np.inf
 
-    #blockPrint()
+    blockPrint()
 
     restrict = params['restriction']
     for episode in range(EPISODES):
@@ -100,7 +90,7 @@ def main(args):
             for step in range(STEPS):
                 action, value, logp = agent(state['actor_input'])
                 action = action.item()
-                next_state, reward, done, info = env.step(action)  #given action, determine step through carlaRL_env
+                next_state, reward, done, info = env.step(action)
                 steer_guidance = info['guidance']
                 road_opt = info['road_option']
                 ep_return += reward
@@ -140,7 +130,6 @@ def main(args):
                         
         agent.finish_path(bootstrap_value)
         agent.compute_gae(gamma=args.gamma, lam=0.95)
-
         num_samples = ep_len
         indices = np.arange(num_samples)
         np.random.shuffle(indices)

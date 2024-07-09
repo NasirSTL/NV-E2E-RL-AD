@@ -1,7 +1,5 @@
 ## Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving
 
-Version 2 of Owen Ma's [v-e2e-rl-ad repository](https://github.com/xhOwenMa/v-e2e-rl-ad)
-
 Implementation of the Thesis: **Verifiable End-to-End Reinforcement Learning-Based Autonomous Driving**<br>
 Xinhang (Owen) Ma<br>
 
@@ -19,7 +17,7 @@ For codes and documentations of the engineering parts of the f1tenth vehicle in 
 
 1. Clone this repository:
     ```Shell
-    git clone https://github.com/catac0mb/v-e2e-rl-ad.git
+    git clone https://github.com/xhOwenMa/v-e2e-rl-ad.git
     cd v-e2e-rl-ad
     ```
 
@@ -33,8 +31,6 @@ For codes and documentations of the engineering parts of the f1tenth vehicle in 
     ```Shell
     pip install -r requirements.txt
     ```
-    
-4. Place global_route_planner2_for_navigation.py in PythonAPI/carla/agents/navigation and rename it as global_route_planner2.py
 
 ## Getting Started
 

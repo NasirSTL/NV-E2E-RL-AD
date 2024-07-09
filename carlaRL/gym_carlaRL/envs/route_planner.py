@@ -4,12 +4,8 @@ import random
 import time
 import numpy as np
 import carla
-import sys
-import xml.etree.ElementTree as ET
-import networkx as nx
-sys.path.append('C:/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/misc') # tweak to where you put carla
 
-from .misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
+from gym_carlaRL.envs.misc import distance_vehicle, is_within_distance_ahead, compute_magnitude_angle
 
 class RoadOption(Enum):
   """
@@ -293,34 +289,3 @@ def compute_connection(current_waypoint, next_waypoint, threshold=35):
     return 0
   else:
     return 0
-  
-def compute_connection_original(current_waypoint, next_waypoint):
-    """
-    Compute the type of topological connection between an active waypoint (current_waypoint) and a target waypoint
-    (next_waypoint).
-
-    :param current_waypoint: active waypoint
-    :param next_waypoint: target waypoint
-    :return: the type of topological connection encoded as a RoadOption enum:
-             RoadOption.STRAIGHT
-             RoadOption.LEFT
-             RoadOption.RIGHT
-    """
-    n = next_waypoint.transform.rotation.yaw
-    n = n % 360.0
-
-    c = current_waypoint.transform.rotation.yaw
-    c = c % 360.0
-
-    diff_angle = (n - c) % 180.0
-    if diff_angle < 1.0:
-        return RoadOption.STRAIGHT
-    elif diff_angle > 90.0:
-        return RoadOption.LEFT
-    else:
-        return RoadOption.RIGHT
-
-
-
-
-      
