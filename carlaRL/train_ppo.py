@@ -101,7 +101,7 @@ def main(args):
                     """Only store the data if the guiding steer is going straight or lanefollowing
                     """
                     ep_len += 1
-                    agent.memory.add(state, action, steer_guidance, reward, done, value, logp)
+                    agent.memory.add(state, action, steer_guidance, reward, done, value, logp) #obs, action, steer_guide, reward, done, value, logp
                 else:
                     enablePrint()
                     print(f'Road option: {road_opt} \n')
@@ -123,6 +123,7 @@ def main(args):
                 if done or reach_restrict or max_steps:
                     if done:
                         bootstrap_value = float(0)
+                        print("reached done")
                     else:
                         _, value, _ = agent(state['actor_input'], state['command'])
                         bootstrap_value = value.item()
@@ -143,7 +144,7 @@ def main(args):
             begin = i * BATCH_SIZE
             end = min((i + 1) * BATCH_SIZE, num_samples)
             batch_indices = indices[begin:end]
-            policy_loss, value_loss, ent = agent.update(batch_indices=batch_indices, clip_param=0.2, beta=b)
+            policy_loss, value_loss, ent = agent.update(batch_indices=batch_indices, beta=b, clip_param=0.2)
             policy_losses.append(policy_loss)
             value_losses.append(value_loss)
             ents.append(ent)

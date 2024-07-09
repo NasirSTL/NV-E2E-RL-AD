@@ -442,8 +442,8 @@ class CarlaEnv(gym.Env):
 
         
         if len(self.plan) == 1:
-            command = 5
-            next_command = 6 #None
+            command = 4
+            next_command = 5 #None
         else:
             
             current_objective = self.plan[0] #usually (location, command)
@@ -456,7 +456,7 @@ class CarlaEnv(gym.Env):
                 command = next_objective[1]
                 self.plan.pop(0)
                 if len(self.plan) == 1:
-                    next_command = 6 #None
+                    next_command = 5 #None
                 else:
                     next_objective = self.plan[1] 
                     next_command = next_objective[1]
@@ -466,22 +466,22 @@ class CarlaEnv(gym.Env):
                 next_command = next_objective[1]
             #print("plan says command is: ", command)
             if command == RoadOption.LANEFOLLOW:
-                command = 4
-            elif command == RoadOption.STRAIGHT:
                 command = 3
-            elif command == RoadOption.RIGHT:
+            elif command == RoadOption.STRAIGHT:
                 command = 2
-            else:
+            elif command == RoadOption.RIGHT:
                 command = 1
+            else:
+                command = 0
             
             if next_command == RoadOption.LANEFOLLOW:
-                next_command = 4
-            elif next_command == RoadOption.STRAIGHT:
                 next_command = 3
-            elif next_command == RoadOption.RIGHT:
+            elif next_command == RoadOption.STRAIGHT:
                 next_command = 2
-            else:
+            elif next_command == RoadOption.RIGHT:
                 next_command = 1
+            else:
+                next_command = 0
 
         #image type is numpy array
         obs = {
@@ -515,7 +515,7 @@ class CarlaEnv(gym.Env):
 
         steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
  
-        if current_command == 5: #coming towards goal, command is stop
+        if current_command == 4: #coming towards goal, command is stop
             r_collision = 0
             if len(self.collision_hist) == 0:
                 r_collision = 1
@@ -536,7 +536,7 @@ class CarlaEnv(gym.Env):
                 r_brake = 1-braking #encourage smaller breaking more than larger breaking  
                 r = r + r_brake
         
-        if current_command == 4: #lanefollow
+        if current_command == 3: #lanefollow
             r_collision = 0
             if len(self.collision_hist) == 0:
                 r_collision = 1
@@ -591,7 +591,7 @@ class CarlaEnv(gym.Env):
                 dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
                 r = 1 + dis
 
-        elif current_command == 3: #go straight through junction
+        elif current_command == 2: #go straight through junction
             r_collision = 0
             if len(self.collision_hist) == 0:
                 r_collision = 1
@@ -607,7 +607,7 @@ class CarlaEnv(gym.Env):
                 r_steer = 1
                 r = r + r_steer
 
-        elif current_command == 2: # go right 
+        elif current_command == 1: # go right 
             r_collision = 0
             if len(self.collision_hist) == 0:
                 r_collision = 1
