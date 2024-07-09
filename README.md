@@ -17,7 +17,7 @@ For codes and documentations of the engineering parts of the f1tenth vehicle in 
 
 1. Clone this repository:
     ```Shell
-    git clone https://github.com/xhOwenMa/v-e2e-rl-ad.git
+    git clone https://github.com/catac0mb/v-e2e-rl-ad.git
     cd v-e2e-rl-ad
     ```
 
