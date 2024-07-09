@@ -127,6 +127,8 @@ class Actor(nn.Module):
             nn.Flatten(),
         )
 
+
+
         self.fc_layers = nn.Sequential(
             nn.Linear(1600, 512),
             nn.PReLU(),
@@ -148,7 +150,7 @@ class Actor(nn.Module):
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-    def forward(self, image, actions=None):
+    def forward(self, image, command, actions=None):
         x = torch.as_tensor(image).float().to(DEVICE)
         if x.dim() == 3:
             x = x.unsqueeze(0)  # Ensure it has batch dimension
@@ -234,7 +236,7 @@ class Critic(nn.Module):
         # self.model.apply(weights_init)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-    def forward(self, image):
+    def forward(self, image, command):
         x = torch.as_tensor(image).float().to(DEVICE)
         if x.dim() == 3:
             x = x.unsqueeze(0)
@@ -263,9 +265,9 @@ class ActorCritic(nn.Module):
         self.pi = Actor(obs_dim, action_dim, pi_lr).to(DEVICE)
         self.v = Critic(obs_dim, v_lr).to(DEVICE)
 
-    def forward(self, image):
-        action, logp = self.pi(image)
-        value = self.v(image)
+    def forward(self, image, command):
+        action, logp = self.pi(image, command)
+        value = self.v(image, command)
         
         return action, value, logp
 
@@ -311,7 +313,7 @@ class ActorCritic(nn.Module):
         advantages = torch.as_tensor(advantages, dtype=torch.float32, device=DEVICE)
         returns = torch.as_tensor(returns, dtype=torch.float32, device=DEVICE)
 
-        # train policy
+        # train policy add command for pi and v loss
         for _ in range(self.pi_epochs):
             self.pi.optimizer.zero_grad()
             pi_loss, entropy, ppo_loss = self.compute_pi_loss(images, vehicle_states, actions, steer_guides, advantages, logps, clip_param, beta=beta)

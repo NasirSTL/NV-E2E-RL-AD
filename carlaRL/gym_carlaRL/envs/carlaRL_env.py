@@ -42,7 +42,7 @@ class _plan():
      self.start = start
 
 
-  def get_high_level_plan2(self):
+  def get_high_level_plan(self):
     sampling_resolution = 1
     grp = GlobalRoutePlanner(self.map, sampling_resolution)
     route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
@@ -313,7 +313,7 @@ class CarlaEnv(gym.Env):
         goal_position = self.goal_pos.location
         path_plan = _plan(self.world, start_pos.location, goal_position)
         #based on plan (where you currently are, what steps to take to get to goal), receive command
-        self.plan = path_plan.get_high_level_plan2()
+        self.plan = path_plan.get_high_level_plan()
 
         blueprint_library = self.world.get_blueprint_library()
         ego_vehicle_bp = blueprint_library.find('vehicle.tesla.model3')
@@ -483,6 +483,7 @@ class CarlaEnv(gym.Env):
             else:
                 next_command = 1
 
+        #image type is numpy array
         obs = {
             'actor_input': pred if self.params['model'] == 'ufld' else img,
             'vehicle_state': v_state,

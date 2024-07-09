@@ -77,7 +77,7 @@ def main(args):
     training_log = {'episode': [], 'policy_loss': [], 'value_loss': [], 'episode_return': [], 'episode_length': [], 'policy_mean': [], 'policy_std': [], 'policy_entropy': []}
     best_return = -np.inf
 
-    blockPrint()
+    #blockPrint()
 
     restrict = params['restriction']
     for episode in range(EPISODES):
@@ -88,7 +88,7 @@ def main(args):
 
         with tqdm(total=STEPS, desc=f"Episode {episode + 1}/{EPISODES}", leave=True) as pbar:
             for step in range(STEPS):
-                action, value, logp = agent(state['actor_input'])
+                action, value, logp = agent(state['actor_input'], state['command'])
                 action = action.item()
                 next_state, reward, done, info = env.step(action)
                 steer_guidance = info['guidance']
@@ -105,7 +105,7 @@ def main(args):
                 else:
                     enablePrint()
                     print(f'Road option: {road_opt} \n')
-                    blockPrint()
+                    #blockPrint()
 
                 state = next_state
 
@@ -124,7 +124,7 @@ def main(args):
                     if done:
                         bootstrap_value = float(0)
                     else:
-                        _, value, _ = agent(state['actor_input'])
+                        _, value, _ = agent(state['actor_input'], state['command'])
                         bootstrap_value = value.item()
                     break
                         
@@ -152,7 +152,7 @@ def main(args):
             policy_mean = agent.pi.mu.detach().cpu().numpy()[0].item()
             policy_std = torch.exp(agent.pi.log_std).item()
             print(f'policy mean: {policy_mean:.3f}; policy std: {policy_std:.5f} \n episode losses: policy_loss: {np.mean(policy_losses):.4f}, value_loss: {np.mean(value_losses):.4f} \n')
-            blockPrint()
+            #blockPrint()
 
         agent.memory.clear()
 
