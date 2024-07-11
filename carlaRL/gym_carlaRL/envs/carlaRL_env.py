@@ -113,7 +113,7 @@ class CarlaEnv(gym.Env):
     def setup_carla(self):
         host = self.params.get('host', 'localhost')
         port = self.params.get('port', 2000)
-        town = self.params.get('town', 'Town04')
+        town = self.params.get('town', 'Town05')
         self.width, self.height = self.params['display_size'][0], self.params['display_size'][1]
 
         print(f'Connecting to the CARLA server at {host}:{port}...')
@@ -267,47 +267,55 @@ class CarlaEnv(gym.Env):
         # Disable sync mode
         self._set_synchronous_mode(False)
 
-        # Spawn the ego vehicle
-        if self.params['mode'] == 'test':
-            # get a random index for the spawn points
-            index = np.random.randint(0, len(self.spawn_points))
-            start_pos = self.spawn_points[index]
+        rand_locations = True
+        if rand_locations:
+            self.start_type = 'random'
+            start_pos = random.choice(self.spawn_points)
             index = np.random.randint(0, len(self.spawn_points))
             self.goal_pos = self.spawn_points[index]
-            print(f'spawn location: {index}...')
-        elif self.params['mode'] == 'train':
-            if self.reset_step > 500:
-                start_pos = random.choice(self.spawn_points)
-                self.goal_pos = random.choice(self.spawn_points)
-            else:
-                start_pos = self.spawn_points[self.straight_spawn_loc]
-                self.goal_pos = random.choice(self.spawn_points)
-        elif self.params['mode'] == 'train_controller':
-            if self.reset_step < 200:
-                self.start_type = 'straight'
-                start_pos = self.spawn_points[self.straight_spawn_loc]
+
+        else:
+            # Spawn the ego vehicle
+            if self.params['mode'] == 'test':
+                # get a random index for the spawn points
+                index = np.random.randint(0, len(self.spawn_points))
+                start_pos = self.spawn_points[index]
                 index = np.random.randint(0, len(self.spawn_points))
                 self.goal_pos = self.spawn_points[index]
-            elif self.reset_step < 2000:
-                self.start_type = 'random'
-                start_pos = random.choice(self.spawn_points)
-                index = np.random.randint(0, len(self.spawn_points))
-                self.goal_pos = self.spawn_points[index]
-            else:
-                if np.random.rand() < 0.8:
-                    self.start_type = 'random'
-                    loc = np.random.randint(0, len(self.spawn_points))
-                    start_pos = self.spawn_points[loc]
-                    index = np.random.randint(0, len(self.spawn_points))
-                    self.goal_pos = self.spawn_points[index]
-                    print(f'\n ***random spawn location: {loc}...')
+                print(f'spawn location: {index}...')
+            elif self.params['mode'] == 'train':
+                if self.reset_step > 500:
+                    start_pos = random.choice(self.spawn_points)
+                    self.goal_pos = random.choice(self.spawn_points)
                 else:
-                    self.start_type = 'challenge'
-                    start_pos = self.spawn_points[self.spawn_loc]
+                    start_pos = self.spawn_points[self.straight_spawn_loc]
+                    self.goal_pos = random.choice(self.spawn_points)
+            elif self.params['mode'] == 'train_controller':
+                if self.reset_step < 200:
+                    self.start_type = 'straight'
+                    start_pos = self.spawn_points[self.straight_spawn_loc]
                     index = np.random.randint(0, len(self.spawn_points))
                     self.goal_pos = self.spawn_points[index]
-                    self.spawn_loc = self.spawn_locs[(self.spawn_locs.index(self.spawn_loc) + 1) % len(self.spawn_locs)]
-                    print(f'\n ***challenge spawn location: {self.spawn_loc}...')
+                elif self.reset_step < 2000:
+                    self.start_type = 'random'
+                    start_pos = random.choice(self.spawn_points)
+                    index = np.random.randint(0, len(self.spawn_points))
+                    self.goal_pos = self.spawn_points[index]
+                else:
+                    if np.random.rand() < 0.8:
+                        self.start_type = 'random'
+                        loc = np.random.randint(0, len(self.spawn_points))
+                        start_pos = self.spawn_points[loc]
+                        index = np.random.randint(0, len(self.spawn_points))
+                        self.goal_pos = self.spawn_points[index]
+                        print(f'\n ***random spawn location: {loc}...')
+                    else:
+                        self.start_type = 'challenge'
+                        start_pos = self.spawn_points[self.spawn_loc]
+                        index = np.random.randint(0, len(self.spawn_points))
+                        self.goal_pos = self.spawn_points[index]
+                        self.spawn_loc = self.spawn_locs[(self.spawn_locs.index(self.spawn_loc) + 1) % len(self.spawn_locs)]
+                        print(f'\n ***challenge spawn location: {self.spawn_loc}...')
 
         #print("now getting plan for episode")
         goal_position = self.goal_pos.location
@@ -393,6 +401,17 @@ class CarlaEnv(gym.Env):
         return np.linalg.norm(carla_vec_to_np_array(self.ego.get_velocity()))
     
     def get_observations(self):
+        speed = self.get_vehicle_speed()
+        ego_trans = self.ego.get_transform()
+        ego_x = ego_trans.location.x
+        ego_y = ego_trans.location.y
+        ego_z = ego_trans.location.z
+        ego_yaw = ego_trans.rotation.yaw/180*np.pi
+        lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+        delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
+
+        v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
+
         obs = {}
         if self.params['model'] == 'ufld':
             image = self.process_image(self.image_windshield)
@@ -438,17 +457,6 @@ class CarlaEnv(gym.Env):
                 self.data_saver.save_lane_image(img_to_save)
                 self.data_saver.save_metrics(v_state)
                 self.data_saver.step()
-            
-        speed = self.get_vehicle_speed()
-        ego_trans = self.ego.get_transform()
-        ego_x = ego_trans.location.x
-        ego_y = ego_trans.location.y
-        ego_z = ego_trans.location.z
-        ego_yaw = ego_trans.rotation.yaw/180*np.pi
-        lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
-        delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
-
-        v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
         
         if len(self.plan) == 1:
             command = 4
@@ -502,67 +510,36 @@ class CarlaEnv(gym.Env):
         return obs
 
     def get_reward(self, obs):
-        #print("getting reward")
-        # # Define how the reward is calculated based on the state
-        # speed = self.get_vehicle_speed()
-        # r_speed = -abs(speed - self.desired_speed)
-        #ego_loc = self.ego.get_transform().location
-        #goal_loc = self.goal_pos.location
-        #euclidean_dist = ego_loc.distance(goal_loc)
-        """
-        # reward for steering:
-        r_steer = self.ego.get_control().steer**2  # squared steering to encourage small steering commands but penalize large ones
-        r_steer = -(r_steer / 0.04)  # normalize the steering
-        """
-
         vehicle_state = obs['vehicle_state']
-        current_command = obs['command'] #does the car steer according to the command?
-        #next_command = obs['next_command']
-
-        #print("current command is: ", current_command)
-        r = 0
-        #print("current steer is: ",  self.ego.get_control().steer)
-        
+        current_command = obs['command'] #does the car steer according to the command? 
         ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
-        right_lane_change = False
-        left_lane_change = False
+        steer = self.ego.get_control().steer
+        r = 0       
+
         if ego_waypoint != None:
-                right_lane = ego_waypoint.right_lane_marking
-                left_lane = ego_waypoint.left_lane_marking
-                if str(right_lane.type) == "Broken": 
-                   right_lane_change = True
-                   #print("can make right lane change")
-                if str(left_lane.type) == "Broken": 
-                   left_lane_change = True
-                   #print("can make left lane change")
+            right_lane_change = self.legal_lane_change(ego_waypoint, 0) #True or false for if lane change to right is legal
+            left_lane_change = self.legal_lane_change(ego_waypoint, 1)
+        else:
+            right_lane_change = False
+            left_lane_change = True
 
         #rewards regardless of command: collision, crossing over solid lane marking
         r_collision = 0
         if len(self.collision_hist) != 0:
-            r_collision = -2
+            print("collision has occurred")
+            r_collision = -3
             r = r + r_collision
         if not right_lane_change: # punish for steering right if illegal
-            if steer > .1:
-                r_steer = -1
-                r = r + r_steer
-        if not left_lane_change: # punish for steering left if illegal
-            if steer < -.1:
-                r_steer = -1
-                r = r + r_steer
-        
-        steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
- 
-        if current_command == 4: #coming towards goal, command is stop
-            dis = abs(vehicle_state[0])
-            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-            r = 1 + dis
-        
-        if current_command == 3: #lanefollow
-            ego_trans = self.ego.get_transform()
-            ego_x = ego_trans.location.x
-            ego_y = ego_trans.location.y
-            dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+            r = self.steer_threshold_reward(steer, -1.1, .1, r, .5)
 
+        if not left_lane_change: # punish for steering left if illegal
+            r = self.steer_threshold_reward(steer, -.1, 1.1, r, .5)
+         
+        if current_command == 4: #coming towards goal, command is stop
+            r = self.lane_threshold_reward(vehicle_state[0], r)
+
+        if current_command == 3: #lanefollow
+            
             next_objective = [None, None]
             if len(self.plan) > 1:
                 next_objective = self.plan[1] 
@@ -578,16 +555,12 @@ class CarlaEnv(gym.Env):
 
             else: #either our speed is fine or a lane change is not possible now (or dont have upcoming turn)
                 # reward for out of lane 
-                dis = abs(vehicle_state[0])
-                dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-                r = 1 + dis
+                r = self.lane_threshold_reward(vehicle_state[0], r)
+
 
         elif current_command == 2: #go straight through junction
             # reward for out of lane
-            dis = abs(vehicle_state[0])
-            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
-            #print("dis: ", dis)
-            r = 1 + dis
+            r = self.lane_threshold_reward(vehicle_state[0], r)
 
             #penalize for steering left or right
             r = self.steer_threshold_reward(steer, -.07, .07, r, 1)
@@ -600,20 +573,46 @@ class CarlaEnv(gym.Env):
             # reward for steering:
             r = self.steer_threshold_reward(steer, -.7, -.1, r, 1)
     
-        #print("reward for step is: ", r)
+        print("reward for step is: ", r)
         return r
+    
+    def legal_lane_change(self, waypoint, direction):
+        if direction == 0: #check right
+            right_lane = waypoint.right_lane_marking
+            if str(right_lane.type) == "Broken": 
+                return True
+                #print("can make right lane change")
+            else:
+                return False
+        else:
+            left_lane = waypoint.left_lane_marking
+            if str(left_lane.type) == "Broken": 
+                return True
+                #print("can make left lane change")
+            else:
+                return False
+
+
+    def lane_threshold_reward(self, lateral_distance, current_reward):
+        dis = abs(lateral_distance)
+        dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+        current_reward = current_reward + 1 + dis
+        print("lane_threshold_reward: ", 1+ dis)
+        return current_reward
+
     
     def steer_threshold_reward(self, steer, val_1, val_2, current_reward, to_add):
         if steer > val_1 and steer < val_2:
             current_reward = current_reward + to_add
+            print("steer in threshold")
         else:
             current_reward = current_reward - to_add
+            print("steer not in threshold")
         
         return current_reward
 
 
     def is_done(self, obs):
-        ego_x, ego_y = get_pos(self.ego)
 
         # if collides
         if len(self.collision_hist)>0: 
@@ -628,12 +627,6 @@ class CarlaEnv(gym.Env):
         goal_loc = self.goal_pos.location
         euclidean_dist = ego_loc.distance(goal_loc)
         if euclidean_dist <= 4:
-            return True
-
-        # If out of lane
-        vehicle_state = obs['vehicle_state']
-        dis = abs(vehicle_state[0])
-        if abs(dis) > self.params['out_lane_thres']:
             return True
         
         return False

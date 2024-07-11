@@ -16,7 +16,7 @@ def main():
     params = {
         'host': 'localhost',  # '104.51.58.17',
         'port': 2000,  # The port where your CARLA server is running
-        'town': 'Town04',  # The map to use
+        'town': 'Town05',  # The map to use
         'mode': 'test',  # The mode to run the environment in
         'algo' : 'ppo',  # this decides how the image is processed
         'controller_version': 1,  # The version of the controller to use
@@ -33,7 +33,7 @@ def main():
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
-        'model_path': '',  # Path to the lane detection model
+        'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
         'record_interval': 10,  # The interval in which to record the episode
         'collect': True,  # Whether to collect the data
     }
@@ -43,7 +43,7 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = ''
+    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=210_r=230.pth'
     ppoAgent.load_state_dict(torch.load(model_path))
     ppoAgent.eval()
 
@@ -57,7 +57,7 @@ def main():
         done = False
         for s in range(params['max_time_episode']):
             with torch.no_grad():
-                action, _, _ = ppoAgent(state['actor_input'])
+                action, _, _ = ppoAgent(state['actor_input'], state['command'], state['next_command'])
                 # action = controller(state['actor_img'])
             action_to_perform = action.item()
             pos = state['vehicle_state'][-3:]
@@ -71,9 +71,6 @@ def main():
                 v_states = []
                 print(f'saved a serires of vehicle states...')
             next_state, reward, done, info = env.step(action_to_perform)
-            lane_option = info['road_option']
-            if lane_option != 1:
-                done = True
             state = next_state
             if done:
                 break

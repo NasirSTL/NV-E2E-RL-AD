@@ -37,7 +37,7 @@ def main(args):
     params = {
         'host': 'localhost',  # '104.51.58.17',
         'port': args.port,  # The port where your CARLA server is running
-        'town': 'Town04',  # The map to use
+        'town': 'Town05',  # The map to use
         'mode': 'train_controller',  # The mode to run the environment in: train is for RL algorithms only
         'algo' : 'ppo',  # this decides how the image is processed
         'controller_version': 3,  # The version of the controller to use
@@ -107,15 +107,8 @@ def main(args):
                 value = value.item()
                 logp = logp.item()
 
-                if road_opt == 1:
-                    """Only store the data if the guiding steer is going straight or lanefollowing
-                    """
-                    ep_len += 1
-                    agent.memory.add(state, action, steer_guidance, reward, done, value, logp) #obs, action, steer_guide, reward, done, value, logp
-                else:
-                    enablePrint()
-                    print(f'Road option: {road_opt} \n')
-                    #blockPrint()
+                ep_len += 1
+                agent.memory.add(state, action, steer_guidance, reward, done, value, logp) #obs, action, steer_guide, reward, done, value, logp
 
                 state = next_state
 
@@ -199,7 +192,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.90, help='Discount factor')
     parser.add_argument('--update_interval', type=int, default=20, help='Update interval for changing curriculum')
     #parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
-    parser.add_argument('--batch_size', '-bs', type=int, default=32, help='Batch size for learning')
+    parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
     parser.add_argument('--max_episodes', type=int, default=5000, help='Maximum number of episodes to train')
     parser.add_argument('--steps', type=int, default=600, help='Maximum number of steps per episode')
     parser.add_argument('--saving_model', type=bool, default=True, help='Whether to save the model')
