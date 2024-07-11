@@ -405,7 +405,17 @@ class CarlaEnv(gym.Env):
                 poly_left, poly_right, img = self.lane_detector(self.image_windshield)
                 
             if np.max(img) > 1:
-                img = (img - np.min(img)) / (np.max(img) - np.min(img))
+                max_val = np.max(img)
+                min_val = np.min(img)
+                if (max_val-min_val) == 0:
+                    print("Divide by 0 in get_observations. Performing alternate normalization.")
+                    if min_val < 0:
+                        img = np.where(img <= 0, 0, 1)
+                    else:
+                        img = img
+                else:
+                    img = (img - np.min(img)) / (np.max(img) - np.min(img))
+           
             img = img.astype(np.uint8)
             if self.version == 1:
                 img_to_save = cv2.resize(img, (128,128))
@@ -439,7 +449,6 @@ class CarlaEnv(gym.Env):
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
 
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
-
         
         if len(self.plan) == 1:
             command = 4

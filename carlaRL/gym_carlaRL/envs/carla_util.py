@@ -72,8 +72,20 @@ class ImageProcessor():
                     avg_img += (img * np.power(i+1, 3))  # Weight the image based on the time it was seen
                 else:
                     avg_img += img
-            # Normalize the image using min-max to the range [0, 1]
-            img = (avg_img - np.min(avg_img)) / (np.max(avg_img) - np.min(avg_img))
+            
+            min_val = np.min(avg_img)
+            max_val = np.max(avg_img)
+            
+            if (max_val-min_val) == 0:
+                print("Divide by 0 detected in ImageProcessor. Doing alternate normalization.")
+                if min_val < 0 or max_val > 1:
+                    img = np.where(avg_img <= 0, 0, 1)
+                else:
+                    img = avg_img
+
+            else:
+                # Normalize the image using min-max to the range [0, 1]
+                img = (avg_img - np.min(avg_img)) / (np.max(avg_img) - np.min(avg_img))
 
             # squeeze the channel dimension to create image_to_save
             img_to_save = np.squeeze(img, axis=0)

@@ -12,6 +12,7 @@ from gym_carlaRL.agent.ppo_agent import ActorCritic
 from utils import *
 
 import os
+import gc
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -19,7 +20,8 @@ print(f'DEVICE: {DEVICE}')
 
 
 def main(args):
-
+    gc.collect()
+    torch.cuda.empty_cache()
     save_dir = "./log/ppo/imgOnly/f1tenth/ufld/{}".format(args.id)
     os.makedirs(save_dir, exist_ok=True)
 
@@ -86,9 +88,16 @@ def main(args):
         if (episode + 1) % update_interval == 0:
             restrict = restrict + 20
 
+        end_early = False
+
         with tqdm(total=STEPS, desc=f"Episode {episode + 1}/{EPISODES}", leave=True) as pbar:
             for step in range(STEPS):
+                if np.isnan(state['actor_input']).any():
+                    end_early = True
+                    print("found nan. ending early.")
+                    break
                 action, value, logp = agent(state['actor_input'], state['command'])
+
                 action = action.item()
                 next_state, reward, done, info = env.step(action)
                 steer_guidance = info['guidance']
@@ -129,6 +138,9 @@ def main(args):
                         bootstrap_value = value.item()
                     break
                         
+        if end_early:
+            continue
+
         agent.finish_path(bootstrap_value)
         agent.compute_gae(gamma=args.gamma, lam=0.95)
         num_samples = ep_len
@@ -174,6 +186,9 @@ def main(args):
             save_filename = '{}/{}_epi={}_r={}.pth'.format(save_dir, env.start_type, episode+1, int(ep_return))
             torch.save(agent.state_dict(), save_filename)
 
+        gc.collect()
+        torch.cuda.empty_cache()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -182,7 +197,8 @@ if __name__ == '__main__':
     parser.add_argument('--clip_action', type=bool, default=False, help='Whether to clip the steering angle')
     parser.add_argument('--gamma', type=float, default=0.90, help='Discount factor')
     parser.add_argument('--update_interval', type=int, default=20, help='Update interval for changing curriculum')
-    parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
+    #parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
+    parser.add_argument('--batch_size', '-bs', type=int, default=32, help='Batch size for learning')
     parser.add_argument('--max_episodes', type=int, default=5000, help='Maximum number of episodes to train')
     parser.add_argument('--steps', type=int, default=600, help='Maximum number of steps per episode')
     parser.add_argument('--saving_model', type=bool, default=True, help='Whether to save the model')

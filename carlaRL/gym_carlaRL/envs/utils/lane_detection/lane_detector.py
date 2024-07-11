@@ -77,6 +77,8 @@ class LaneDetector():
         # This could be based on the distribution of lane pixels across the width of the image
         # For simplicity, let's use the median x-coordinate of lane pixels
         lane_pixels = np.argwhere(segmentation_map > 0)  # Assuming non-zero pixels are lane pixels
+        if len(lane_pixels) == 0:
+            print("no lanes detected")
         if len(lane_pixels) > 0:
             median_x_coordinate = np.median(lane_pixels[:, 1])  # x-coordinate is the second value
 
