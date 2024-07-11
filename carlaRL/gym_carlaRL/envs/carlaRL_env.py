@@ -560,7 +560,7 @@ class CarlaEnv(gym.Env):
 
         elif current_command == 2: #go straight through junction
             # reward for out of lane
-            r = self.lane_threshold_reward(vehicle_state[0], r)
+            #r = self.lane_threshold_reward(vehicle_state[0], r)
 
             #penalize for steering left or right
             r = self.steer_threshold_reward(steer, -.07, .07, r, 1)
@@ -579,14 +579,15 @@ class CarlaEnv(gym.Env):
     def legal_lane_change(self, waypoint, direction):
         if direction == 0: #check right
             right_lane = waypoint.right_lane_marking
-            if str(right_lane.type) == "Broken": 
+            if str(right_lane.type) == "Broken" or str(right_lane.type) == "NONE": 
                 return True
                 #print("can make right lane change")
             else:
                 return False
+            
         else:
             left_lane = waypoint.left_lane_marking
-            if str(left_lane.type) == "Broken": 
+            if str(left_lane.type) == "Broken" or str(left_lane.type) == "NONE": 
                 return True
                 #print("can make left lane change")
             else:
