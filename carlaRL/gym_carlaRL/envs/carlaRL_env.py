@@ -517,62 +517,16 @@ class CarlaEnv(gym.Env):
 
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command?
-        next_command = obs['next_command']
+        #next_command = obs['next_command']
+
         #print("current command is: ", current_command)
         r = 0
         #print("current steer is: ",  self.ego.get_control().steer)
-
-        steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
- 
-        if current_command == 4: #coming towards goal, command is stop
-            r_collision = 0
-            if len(self.collision_hist) == 0:
-                r_collision = 1
-                r = r + r_collision
-
-            #speed = self.get_vehicle_speed()
-            # discourage throttle and encourage braking
-            throttle = self.ego.get_control().throttle #[0,1.0]
-            braking = self.ego.get_control().brake #[0,1.0]
-
-            if throttle != 0: #should not accelerate
-                r = r-1
-            
-            ego_loc = self.ego.get_location()
-            goal_loc = self.goal_pos.location
-            euclidean_dist = ego_loc.distance(goal_loc)
-            if euclidean_dist < 3:
-                r_brake = 1-braking #encourage smaller breaking more than larger breaking  
-                r = r + r_brake
         
-        if current_command == 3: #lanefollow
-            r_collision = 0
-            if len(self.collision_hist) == 0:
-                r_collision = 1
-                r = r + r_collision
-
-            ego_trans = self.ego.get_transform()
-            ego_x = ego_trans.location.x
-            ego_y = ego_trans.location.y
-            dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
-            # ego_yaw = ego_trans.rotation.yaw/180*np.pi
-            # delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
-            # print(f'dis: {dis}; delta_yaw: {delta_yaw}')
-            # # cost for lateral acceleration
-            # r_lat = - abs(self.ego.get_control().steer) * lspeed_lon**2  # discourage high steering commands at high speeds
-            next_objective = [None, None]
-            if len(self.plan) > 1:
-                next_objective = self.plan[1] 
-
-            v = self.ego.get_velocity()
-            lspeed = np.array([v.x, v.y]) # longitudinal speed
-            lspeed_lon = np.dot(lspeed, w)
-            #print("speed: ", lspeed_lon)
-
-            ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
-            right_lane_change = False
-            left_lane_change = False
-            if ego_waypoint != None:
+        ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
+        right_lane_change = False
+        left_lane_change = False
+        if ego_waypoint != None:
                 right_lane = ego_waypoint.right_lane_marking
                 left_lane = ego_waypoint.left_lane_marking
                 if str(right_lane.type) == "Broken": 
@@ -581,19 +535,47 @@ class CarlaEnv(gym.Env):
                 if str(left_lane.type) == "Broken": 
                    left_lane_change = True
                    #print("can make left lane change")
+
+        #rewards regardless of command: collision, crossing over solid lane marking
+        r_collision = 0
+        if len(self.collision_hist) != 0:
+            r_collision = -2
+            r = r + r_collision
+        if not right_lane_change: # punish for steering right if illegal
+            if steer > .1:
+                r_steer = -1
+                r = r + r_steer
+        if not left_lane_change: # punish for steering left if illegal
+            if steer < -.1:
+                r_steer = -1
+                r = r + r_steer
+        
+        steer = self.ego.get_control().steer #current steer [-1.0, 1.0] 
+ 
+        if current_command == 4: #coming towards goal, command is stop
+            dis = abs(vehicle_state[0])
+            dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+            r = 1 + dis
+        
+        if current_command == 3: #lanefollow
+            ego_trans = self.ego.get_transform()
+            ego_x = ego_trans.location.x
+            ego_y = ego_trans.location.y
+            dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+
+            next_objective = [None, None]
+            if len(self.plan) > 1:
+                next_objective = self.plan[1] 
    
             # if next command is right or left and you can make a lane change, do it
             if len(self.plan) > 1 and (next_objective[1] == RoadOption.LEFT or next_objective[1] == RoadOption.RIGHT):
               #print("have an upcoming turn: ", next_objective[1])
               if right_lane_change and next_objective[1] == RoadOption.RIGHT:
-                  if steer > .1 and steer <.7:
-                      r_steer = 1
-                      r = r + r_steer
+                  r = self.steer_threshold_reward(steer, .1, .7, r, 1)
 
               elif left_lane_change and next_objective[1] == RoadOption.LEFT:
-                  if steer < -.1 and steer >-.7:
-                      r_steer = 1
-                      r = r + r_steer
+                  r = self.steer_threshold_reward(steer, -.7, -.1, r, 1)
+
             else: #either our speed is fine or a lane change is not possible now (or dont have upcoming turn)
                 # reward for out of lane 
                 dis = abs(vehicle_state[0])
@@ -601,10 +583,6 @@ class CarlaEnv(gym.Env):
                 r = 1 + dis
 
         elif current_command == 2: #go straight through junction
-            r_collision = 0
-            if len(self.collision_hist) == 0:
-                r_collision = 1
-                r = r + r_collision
             # reward for out of lane
             dis = abs(vehicle_state[0])
             dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
@@ -612,32 +590,27 @@ class CarlaEnv(gym.Env):
             r = 1 + dis
 
             #penalize for steering left or right
-            if steer < .07 and steer > -.07:
-                r_steer = 1
-                r = r + r_steer
+            r = self.steer_threshold_reward(steer, -.07, .07, r, 1)
 
         elif current_command == 1: # go right 
-            r_collision = 0
-            if len(self.collision_hist) == 0:
-                r_collision = 1
-                r = r + r_collision
             # reward for steering:
-            if steer > .1 and steer < .7:
-                r_steer = 1
-                r = r + r_steer
+            r = self.steer_threshold_reward(steer, .1, .7, r, 1)
 
         else: # go left
-            r_collision = 0
-            if len(self.collision_hist) == 0:
-                r_collision = 1
-                r = r + r_collision
             # reward for steering:
-            if steer < -.1 and steer > -.7:
-                r_steer = 1
-                r = r + r_steer
-
+            r = self.steer_threshold_reward(steer, -.7, -.1, r, 1)
+    
         #print("reward for step is: ", r)
         return r
+    
+    def steer_threshold_reward(self, steer, val_1, val_2, current_reward, to_add):
+        if steer > val_1 and steer < val_2:
+            current_reward = current_reward + to_add
+        else:
+            current_reward = current_reward - to_add
+        
+        return current_reward
+
 
     def is_done(self, obs):
         ego_x, ego_y = get_pos(self.ego)
@@ -650,6 +623,13 @@ class CarlaEnv(gym.Env):
         if self.time_step > self.params['max_time_episode']:
             return True
         
+        # if close to goal
+        ego_loc = self.ego.get_location()
+        goal_loc = self.goal_pos.location
+        euclidean_dist = ego_loc.distance(goal_loc)
+        if euclidean_dist <= 4:
+            return True
+
         # If out of lane
         vehicle_state = obs['vehicle_state']
         dis = abs(vehicle_state[0])

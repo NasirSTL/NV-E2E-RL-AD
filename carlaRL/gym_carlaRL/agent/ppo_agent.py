@@ -66,7 +66,7 @@ class ReplayBuffer:
         values = np.array(values)
         logps = np.array(logps)
 
-        return commands, actor_inputs, vehicle_states, actions, steer_guides, rewards, dones, values, logps
+        return commands, next_commands, actor_inputs, vehicle_states, actions, steer_guides, rewards, dones, values, logps
 
     def get_advantages_and_returns(self, batch_indices):
         if isinstance(batch_indices, int):
@@ -129,14 +129,21 @@ class Actor(nn.Module):
 
         # Fully connected layers for command processing
         self.command_fc = nn.Sequential(
-            nn.Embedding(5, 10),  # Assuming command_dim is the number of discrete commands
+            nn.Embedding(5, 10),  # Assuming 5 is the number of discrete commands
             nn.Linear(10, 50),
+            nn.PReLU()
+        )
+
+        # Fully connected layers for command processing
+        self.next_command_fc = nn.Sequential(
+            nn.Embedding(6, 10),  # Assuming 6 is the number of discrete commands
+            nn.Linear(10, 60),
             nn.PReLU()
         )
 
         # Fully connected layers for combined features
         self.fc_layers = nn.Sequential(
-            nn.Linear(1650, 512),  # Adjust input dimension to include command features
+            nn.Linear(1600 + 50 + 60, 512),  # Adjust input dimension to include command features
             nn.PReLU(),
             nn.Dropout(0.3),
             nn.Linear(512, 128),
@@ -147,31 +154,10 @@ class Actor(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(10, action_dim),
         )
-
-        """
-        self.fc_layers = nn.Sequential(
-            nn.Linear(1600, 512),
-            nn.PReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, 128),
-            nn.PReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 10),
-            nn.PReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(10, action_dim),
-        )
-        """
-
-        # self.model = nn.Sequential(
-        #     self.conv_layers,
-        #     self.fc_layers,
-        # )
-        # self.model.apply(weights_init)
 
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-    def forward(self, command, image, actions=None):
+    def forward(self, command, next_command, image, actions=None):
         
         #add command arg
         x = torch.as_tensor(image).float().to(DEVICE)
@@ -201,9 +187,19 @@ class Actor(nn.Module):
         command_features = command_features.expand(image_features.size(0), -1)
         #print(f"Command features shape after expand: {command_features.shape} (Expected: [N, 50])")
 
+        # Process next command
+        next_command = torch.as_tensor(next_command).int().to(DEVICE)
+        next_command_features = self.next_command_fc(next_command)
+        
+        # Ensure command_features has the same batch dimension
+        if next_command_features.dim() == 1:
+            next_command_features = next_command_features.unsqueeze(0)
+        
+        # Expand command_features to match the batch size of image_features
+        next_command_features = next_command_features.expand(image_features.size(0), -1)
+
         # Combine features
-        combined_features = torch.cat([image_features, command_features], dim=1)
-        #print(f"Combined features shape: {combined_features.shape} (Expected: [N, 1650])")
+        combined_features = torch.cat([image_features, command_features, next_command_features], dim=1)
         
         # Forward pass through fully connected layers
         x = self.fc_layers(combined_features)
@@ -230,36 +226,6 @@ class Actor(nn.Module):
             # Compute the entropy
             entropy = pi.entropy().mean()
             return logps, mu, entropy
-        
-        """
-        x = torch.as_tensor(image).float().to(DEVICE)
-        if x.dim() == 3:
-            x = x.unsqueeze(0)  # Ensure it has batch dimension
-        x = self.conv_layers(x)
-        x = self.fc_layers(x)
-
-        mu = torch.tanh(x)
-        self.mu = mu
-        std = torch.exp(self.log_std)
-        pi = Normal(mu, std)
-
-        if actions is None:
-            if self.training:
-                action = pi.sample()
-                logp = pi.log_prob(action)
-            else:
-                action = mu
-                logp = None
-            return action, logp
-        else:
-            actions = actions.unsqueeze(-1)  # Reshape actions to [10, 1] to match mu
-            logps = pi.log_prob(actions).squeeze(-1)  # Compute log_prob and then squeeze back to [10]
-
-            # Compute the entropy
-            entropy = pi.entropy().mean()
-            # print(f'entropy: {entropy}')
-            return logps, mu, entropy
-        """
         
 
 class Critic(nn.Module):
@@ -304,9 +270,17 @@ class Critic(nn.Module):
             nn.Linear(10, 50),
             nn.PReLU()
         )
+
+         # Fully connected layers for command processing
+        self.next_command_fc = nn.Sequential(
+            nn.Embedding(6, 10),  # Assuming command_dim is the number of discrete commands
+            nn.Linear(10, 60),
+            nn.PReLU()
+        )
+
         # Fully connected layers for combined features
         self.fc_layers = nn.Sequential(
-            nn.Linear(1650, 512),  # Adjust input dimension to include command features
+            nn.Linear(1600 + 50 + 60, 512),  # Adjust input dimension to include command features
             nn.PReLU(),
             nn.Dropout(0.3),
             nn.Linear(512, 128),
@@ -342,7 +316,7 @@ class Critic(nn.Module):
         # self.model.apply(weights_init)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
-    def forward(self, command, image):
+    def forward(self, command, next_command, image):
         x = torch.as_tensor(image).float().to(DEVICE)
         if x.dim() == 3:
             x = x.unsqueeze(0)  # Ensure it has batch dimension
@@ -363,8 +337,19 @@ class Critic(nn.Module):
         # Expand command_features to match the batch size of image_features
         command_features = command_features.expand(image_features.size(0), -1)
 
+        # Process next command
+        next_command = torch.as_tensor(next_command).int().to(DEVICE)
+        next_command_features = self.next_command_fc(next_command)
+        
+        # Ensure command_features has the same batch dimension
+        if next_command_features.dim() == 1:
+            next_command_features = next_command_features.unsqueeze(0)
+        
+        # Expand command_features to match the batch size of image_features
+        next_command_features = next_command_features.expand(image_features.size(0), -1)
+
         # Combine features
-        combined_features = torch.cat([image_features, command_features], dim=1)
+        combined_features = torch.cat([image_features, command_features, next_command_features], dim=1)
         
         # Forward pass through fully connected layers
         x = self.fc_layers(combined_features)
@@ -372,17 +357,6 @@ class Critic(nn.Module):
         value = torch.squeeze(x, -1)
 
         return value
-
-        """
-        x = torch.as_tensor(image).float().to(DEVICE)
-        if x.dim() == 3:
-            x = x.unsqueeze(0)
-        x = self.conv_layers(x)
-        x = self.fc_layers(x)
-
-        value = torch.squeeze(x, -1)
-        return value
-        """
 
 
 
@@ -402,9 +376,9 @@ class ActorCritic(nn.Module):
         self.pi = Actor(obs_dim, action_dim, pi_lr).to(DEVICE)
         self.v = Critic(obs_dim, v_lr).to(DEVICE)
 
-    def forward(self, image, command):
-        action, logp = self.pi(command, image)
-        value = self.v(command, image)
+    def forward(self, image, command, next_command):
+        action, logp = self.pi(command, next_command, image)
+        value = self.v(command, next_command, image)
         
         return action, value, logp
 
@@ -412,11 +386,11 @@ class ActorCritic(nn.Module):
         if bootstrap:
             self.last_value = last_value
         else:
-            _, _, _, _, _, value, _ = self.memory.get(v_index)
+            _, _, _, _, _, _, _, _, value, _ = self.memory.get(v_index)
             self.last_value = value
 
-    def compute_pi_loss(self, commands, images, vehicle_states, actions, steer_guides, advantages, logps_old, clip_ratio=0.2, beta=0.01):
-        logps, means, entropy = self.pi(commands, images, actions)
+    def compute_pi_loss(self, commands, next_commands, images, vehicle_states, actions, steer_guides, advantages, logps_old, clip_ratio=0.2, beta=0.01):
+        logps, means, entropy = self.pi(commands, next_commands, images, actions)
         ratio = torch.exp(logps - logps_old)
         surr1 = ratio * advantages
         surr2 = torch.clamp(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio) * advantages
@@ -428,8 +402,8 @@ class ActorCritic(nn.Module):
 
         return loss_pi, entropy, loss_ppo
     
-    def compute_v_loss(self, commands, images, vehicle_states, returns):
-        value = self.v(commands, images)
+    def compute_v_loss(self, commands, next_commands, images, vehicle_states, returns):
+        value = self.v(commands, next_commands, images)
         loss_v = ((value - returns)**2).mean()
         return loss_v
 
@@ -439,7 +413,7 @@ class ActorCritic(nn.Module):
         entropy_list = []
         
         # Sample a batch of experiences
-        command, images, vehicle_states, action, steer_guides, _, _, _, logps = self.memory.get(batch_indices)
+        command, next_command, images, vehicle_states, action, steer_guides, _, _, _, logps = self.memory.get(batch_indices)
         # convert to tensor
         actions = torch.as_tensor(action, dtype=torch.float32, device=DEVICE)
         steer_guides = torch.as_tensor(steer_guides, dtype=torch.float32, device=DEVICE)
@@ -453,7 +427,7 @@ class ActorCritic(nn.Module):
         # train policy add command for pi and v loss
         for _ in range(self.pi_epochs):
             self.pi.optimizer.zero_grad()
-            pi_loss, entropy, ppo_loss = self.compute_pi_loss(command, images, vehicle_states, actions, steer_guides, advantages, logps, clip_param, beta=beta)
+            pi_loss, entropy, ppo_loss = self.compute_pi_loss(command, next_command, images, vehicle_states, actions, steer_guides, advantages, logps, clip_param, beta=beta)
             pi_loss.backward()
             self.pi.optimizer.step()
             policy_loss.append(ppo_loss.item())
@@ -462,7 +436,7 @@ class ActorCritic(nn.Module):
         # train value function
         for _ in range(self.v_epochs):
             self.v.optimizer.zero_grad()
-            v_loss = self.compute_v_loss(command, images, vehicle_states, returns)
+            v_loss = self.compute_v_loss(command, next_command, images, vehicle_states, returns)
             v_loss.backward()
             self.v.optimizer.step()
             value_loss.append(v_loss.item())
@@ -471,7 +445,7 @@ class ActorCritic(nn.Module):
 
     def compute_gae(self, gamma=0.99, lam=0.95):
         batch_indices = np.arange(len(self.memory))
-        _, _, _, _, _, rewards, dones, values, _ = self.memory.get(batch_indices)
+        _, _, _, _, _, _, rewards, dones, values, _ = self.memory.get(batch_indices)
 
         values4adv = np.append(values, self.last_value)  # Add the last value to the trajectory
 

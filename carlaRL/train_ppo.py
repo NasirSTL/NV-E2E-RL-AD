@@ -96,7 +96,8 @@ def main(args):
                     end_early = True
                     print("found nan. ending early.")
                     break
-                action, value, logp = agent(state['actor_input'], state['command'])
+
+                action, value, logp = agent(state['actor_input'], state['command'], state['next_command'])
 
                 action = action.item()
                 next_state, reward, done, info = env.step(action)
@@ -134,7 +135,7 @@ def main(args):
                         bootstrap_value = float(0)
                         print("reached done")
                     else:
-                        _, value, _ = agent(state['actor_input'], state['command'])
+                        _, value, _ = agent(state['actor_input'], state['command'], state['next_command'])
                         bootstrap_value = value.item()
                     break
                         
