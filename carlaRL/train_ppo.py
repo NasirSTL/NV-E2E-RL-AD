@@ -55,6 +55,8 @@ def main(args):
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
         'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
+        'left_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/left_turn_model/loss=0.4402_miou=0.3000_epoch=100.pth',
+        'right_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/right_turn_model/loss=0.4759_miou=0.2905_epoch=234.pth',
         'record_interval': 10,  # The interval in which to record the episode
         'restriction': 40 if args.curriculum else STEPS, 
         'collect': False,
@@ -191,13 +193,12 @@ if __name__ == '__main__':
     parser.add_argument('--clip_action', type=bool, default=False, help='Whether to clip the steering angle')
     parser.add_argument('--gamma', type=float, default=0.90, help='Discount factor')
     parser.add_argument('--update_interval', type=int, default=20, help='Update interval for changing curriculum')
-    #parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
     parser.add_argument('--batch_size', '-bs', type=int, default=64, help='Batch size for learning')
     parser.add_argument('--max_episodes', type=int, default=5000, help='Maximum number of episodes to train')
     parser.add_argument('--steps', type=int, default=600, help='Maximum number of steps per episode')
     parser.add_argument('--saving_model', type=bool, default=True, help='Whether to save the model')
     parser.add_argument('--load_model', type=str, default=None, help='Pre-trained model to load')
-    parser.add_argument('--display', type=bool, default=False, help='Whether to display the pygame window')
+    parser.add_argument('--display', type=bool, default=True, help='Whether to display the pygame window')
     parser.add_argument('--curriculum', type=bool, default=True, help='Whether to use curriculum learning')
 
     args = parser.parse_args()

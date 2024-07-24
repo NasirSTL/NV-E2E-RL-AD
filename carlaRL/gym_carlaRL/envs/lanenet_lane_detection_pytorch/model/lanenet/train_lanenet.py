@@ -33,15 +33,7 @@ def compute_loss(net_output, binary_label, instance_label, device, loss_type = '
     binary_seg_logits = net_output["binary_seg_logits"]
     binary_loss = loss_fn(binary_seg_logits, binary_label)
 
-    # pix_embedding = net_output["instance_seg_logits"]
-    # ds_loss_fn = DiscriminativeLoss(0.5, 3, 1.0, 1.0, 0.001)
-    # print(pix_embedding.shape, instance_label.shape)
-    # var_loss, dist_loss, reg_loss = ds_loss_fn(pix_embedding, instance_label)
     binary_loss = binary_loss * k_binary
-    # var_loss = var_loss * k_instance
-    # dist_loss = dist_loss * k_dist
-    # instance_loss = var_loss + dist_loss
-    # total_loss = binary_loss + instance_loss
 
     total_loss = binary_loss
 
@@ -112,8 +104,6 @@ def train_model(model, optimizer, scheduler, dataloaders, dataset_sizes, device,
             if phase == 'train':
                 if scheduler != None:
                     scheduler.step()
-
-
 
             epoch_loss = running_loss / dataset_sizes[phase]
             binary_loss = running_loss_b / dataset_sizes[phase]

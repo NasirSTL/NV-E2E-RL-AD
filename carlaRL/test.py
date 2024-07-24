@@ -19,7 +19,7 @@ def main():
         'town': 'Town05',  # The map to use
         'mode': 'test',  # The mode to run the environment in
         'algo' : 'ppo',  # this decides how the image is processed
-        'controller_version': 1,  # The version of the controller to use
+        'controller_version': 3,  # The version of the controller to use
         'dt': 0.1,  # time interval between two frames
         'desired_speed': 3.6,  # Desired speed (m/s)
         'continuous_accel_range': [-3.0, 3.0],  # continuous acceleration range
@@ -28,7 +28,7 @@ def main():
         'max_waypt': 12,  # maximum number of waypoints
         'out_lane_thres': 1.5,  # threshold for out of lane
         'display_size': [256, 256],  # Screen size for the pygame window
-        'display' : False,  # Whether to display the pygame window
+        'display' : True,  # Whether to display the pygame window
         'max_time_episode': 300,  # Maximum time for each episode
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
@@ -43,8 +43,9 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=210_r=230.pth'
+    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=5512_r=1076.pth'
     ppoAgent.load_state_dict(torch.load(model_path))
+    
     ppoAgent.eval()
 
     # Run episodes

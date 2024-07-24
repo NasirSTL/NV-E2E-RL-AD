@@ -82,7 +82,6 @@ class ImageProcessor():
                     img = np.where(avg_img <= 0, 0, 1)
                 else:
                     img = avg_img
-
             else:
                 # Normalize the image using min-max to the range [0, 1]
                 img = (avg_img - np.min(avg_img)) / (np.max(avg_img) - np.min(avg_img))

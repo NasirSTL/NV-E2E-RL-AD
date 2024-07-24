@@ -119,14 +119,21 @@ def get_lane_dis(waypoints, x, y):
   :param y: y position of vehicle
   :return: a tuple of the distance and the closest waypoint orientation
   """
-  dis_min = 1000
-  waypt, _ = waypoints[0]
-  for pt, _ in waypoints:
-    w_loc = pt.transform.location
-    d = np.sqrt((x-w_loc.x)**2 + (y-w_loc.y)**2)
-    if d < dis_min:
-      dis_min = d
-      waypt=pt
+  
+  if len(waypoints) == 1:
+    waypt = waypoints[0]
+    w_loc = waypt.transform.location
+    dis_min = np.sqrt((x-w_loc.x)**2 + (y-w_loc.y)**2)
+    
+  else:
+    dis_min = 1000
+    waypt, _ = waypoints[0]
+    for pt, _ in waypoints:
+      w_loc = pt.transform.location
+      d = np.sqrt((x-w_loc.x)**2 + (y-w_loc.y)**2)
+      if d < dis_min:
+        dis_min = d
+        waypt=pt
   vec = np.array([x - waypt.transform.location.x, y - waypt.transform.location.y])
   lv = np.linalg.norm(np.array(vec))
   w = np.array([np.cos(waypt.transform.rotation.yaw/180*np.pi), np.sin(waypt.transform.rotation.yaw/180*np.pi)])

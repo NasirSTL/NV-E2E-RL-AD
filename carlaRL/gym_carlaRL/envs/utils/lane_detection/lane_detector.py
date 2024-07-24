@@ -11,13 +11,18 @@ import matplotlib.pyplot as plt
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class LaneDetector():
-    def __init__(self, cam_geom=CameraGeometry(image_width=512, image_height=256), model_path='./lane_segmentation_model.pth',
-    encoder = 'efficientnet-b0', encoder_weights = 'imagenet'):
+    #def __init__(self, cam_geom=CameraGeometry(image_width=512, image_height=256), model_path='./lane_segmentation_model.pth',
+    #encoder = 'efficientnet-b0', encoder_weights = 'imagenet'):
+    def __init__(self, model_path, cam_geom=CameraGeometry(image_width=512, image_height=256),
+    encoder = 'efficientnet-b0', encoder_weights = 'imagenet', intersection=False):
         self.cg = cam_geom
         self.cut_v, self.grid = self.cg.precompute_grid()
         self.model = LaneNet()  # Instantiate the model architecture
         state_dict = torch.load(model_path)
-        # state_dict = torch.load(model_path)['model_state_dict']
+        if intersection:
+            state_dict = torch.load(model_path)['model_state_dict']
+        else:
+            state_dict = torch.load(model_path)
         self.model.load_state_dict(state_dict)  # Apply the state dictionary
         self.model.eval()
         self.model.to(DEVICE)

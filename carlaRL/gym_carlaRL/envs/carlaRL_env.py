@@ -35,6 +35,13 @@ DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 class _plan():
 
   def __init__(self, world, start, goal):
+     """
+     Create an instance of a plan. 
+
+     :param world: Carla Simulator world object
+     :param start: start location
+     :param goal: goal location
+     """
      self.world = world
      self.map = self.world.get_map()
      self.path = []
@@ -43,6 +50,10 @@ class _plan():
 
 
   def get_high_level_plan(self):
+    """
+    Get a high level plan to get from the start to goal.
+    Returns a list of [location, command] pairs, representing where to switch to the next command in the plan.
+    """
     sampling_resolution = 1
     grp = GlobalRoutePlanner(self.map, sampling_resolution)
     route = grp.trace_route(self.start, self.goal) # get a list of [carla.Waypoint, RoadOption] to get from start to goal
@@ -96,7 +107,8 @@ class CarlaEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'actor_input': spaces.Box(low=0, high=255, shape=(self.params['display_size'][1], self.params['display_size'][0], 3), dtype=np.uint8), 
             'vehicle_state': spaces.Box(np.array([-2, -1]), np.array([2, 1]), dtype=np.float64),  # lateral_distance, -delta_yaw
-            'command': spaces.Discrete(5), 'next_command': spaces.Discrete(6), #stop, lane follow, straight, right, left, None
+            'command': spaces.Discrete(3), #lane follow, right, left
+            'next_command': spaces.Discrete(4), #lane follow, right, left, None
             })
 
         # Define action space
@@ -137,6 +149,11 @@ class CarlaEnv(gym.Env):
                 pygame.HWSURFACE | pygame.DOUBLEBUF
                 )
             self.display.fill((0,0,0))
+            self.instance_display = pygame.display.set_mode(
+                (self.width, self.height),
+                pygame.HWSURFACE | pygame.DOUBLEBUF
+                )
+            self.instance_display.fill((0,0,0))
             pygame.display.flip()
             self.font = get_font()
             self.clock = pygame.time.Clock()
@@ -165,6 +182,7 @@ class CarlaEnv(gym.Env):
 
         # Initialize the lane detector
         if self.params['model'] == 'lanenet':
+            # Two versions of lanenet for turning at intersections and for lanefollowing
             self.lane_detector = LaneDetector(model_path=self.params['model_path'])
             self.transform = A.Compose([
                 A.Resize(256, 512),
@@ -172,6 +190,10 @@ class CarlaEnv(gym.Env):
                 ToTensorV2()
             ])
             self.cg = self.lane_detector.cg
+
+            self.left_lane_detector = LaneDetector(model_path=self.params['left_model_path'], intersection=True)
+            self.right_lane_detector = LaneDetector(model_path=self.params['right_model_path'], intersection=True)
+
         elif self.params['model'] == 'ufld':
             self.image_width = 1280
             self.image_height = 720
@@ -239,7 +261,7 @@ class CarlaEnv(gym.Env):
 
         self.world.tick()
 
-        self.waypoints, self.lane_opt = self.routeplanner.run_step()
+        self.waypoints, self.lane_opt = self.routeplanner.run_step() 
 
         new_obs = self.get_observations()
         reward = self.get_reward(new_obs)
@@ -322,6 +344,7 @@ class CarlaEnv(gym.Env):
         path_plan = _plan(self.world, start_pos.location, goal_position)
         #based on plan (where you currently are, what steps to take to get to goal), receive command
         self.plan = path_plan.get_high_level_plan()
+        self.steps_since_turn = 0 # record for done condition
 
         blueprint_library = self.world.get_blueprint_library()
         ego_vehicle_bp = blueprint_library.find('vehicle.tesla.model3')
@@ -400,6 +423,13 @@ class CarlaEnv(gym.Env):
     def get_vehicle_speed(self):
         return np.linalg.norm(carla_vec_to_np_array(self.ego.get_velocity()))
     
+    def get_intersection_waypoints(self, ego_loc, next_loc):
+        sampling_resolution = 1
+        grp = GlobalRoutePlanner(self.map, sampling_resolution)
+        route = grp.trace_route(ego_loc, next_loc) # get a list of [carla.Waypoint, RoadOption] to get from current_loc to end of intersection
+        next_waypoint = [route[0][0]]
+        return next_waypoint
+    
     def get_observations(self):
         speed = self.get_vehicle_speed()
         ego_trans = self.ego.get_transform()
@@ -407,7 +437,18 @@ class CarlaEnv(gym.Env):
         ego_y = ego_trans.location.y
         ego_z = ego_trans.location.z
         ego_yaw = ego_trans.rotation.yaw/180*np.pi
-        lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+        
+        command, next_command = self.get_command(ego_trans.location)
+        print("command: ", command)
+        if command == 2:
+            lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+        else:
+            if len(self.plan) == 1:
+                lateral_dis = 0
+            else:
+                intersection_waypoints = self.get_intersection_waypoints(ego_trans.location, self.plan[1][0])
+                lateral_dis, w = get_lane_dis(intersection_waypoints, ego_x, ego_y)
+        print("lat dis: ", lateral_dis)
         delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
 
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
@@ -419,7 +460,13 @@ class CarlaEnv(gym.Env):
         else:
             if self.params['model'] == 'lanenet':
                 image = self.process_image(self.image_windshield)
-                img = self.lane_detector(image)
+                # change which model depending on command
+                if command == 2:
+                    img = self.lane_detector(image)
+                if command == 1:
+                    img = self.right_lane_detector(image)
+                else:
+                    img = self.left_lane_detector(image)
             else:
                 poly_left, poly_right, img = self.lane_detector(self.image_windshield)
                 
@@ -446,9 +493,12 @@ class CarlaEnv(gym.Env):
                 img, img_to_save = self.image_processor.process_image(img)
 
             if self.params['display']:
-                cv2.imshow('Lane detector output', img)
-                cv2.waitKey(1)
+                #cv2.imshow('Lane detector output', img)
+                #cv2.waitKey(1)
                 draw_image(self.display, self.image_rgb)
+                pygame.display.flip()
+
+                draw_image(self.instance_display, img_to_save)
                 pygame.display.flip()
 
             if self.params['collect']:
@@ -457,48 +507,6 @@ class CarlaEnv(gym.Env):
                 self.data_saver.save_lane_image(img_to_save)
                 self.data_saver.save_metrics(v_state)
                 self.data_saver.step()
-        
-        if len(self.plan) == 1:
-            command = 4
-            next_command = 5 #None
-        else:
-            
-            current_objective = self.plan[0] #usually (location, command)
-            next_objective = self.plan[1] 
-
-            ego_loc = ego_trans.location
-            #compare next plan location to ego location to see if need to switch command
-            euclidean_dist = ego_loc.distance(next_objective[0])
-            if euclidean_dist < 2:
-                command = next_objective[1]
-                self.plan.pop(0)
-                if len(self.plan) == 1:
-                    next_command = 5 #None
-                else:
-                    next_objective = self.plan[1] 
-                    next_command = next_objective[1]
-
-            else:
-                command = current_objective[1]
-                next_command = next_objective[1]
-            #print("plan says command is: ", command)
-            if command == RoadOption.LANEFOLLOW:
-                command = 3
-            elif command == RoadOption.STRAIGHT:
-                command = 2
-            elif command == RoadOption.RIGHT:
-                command = 1
-            else:
-                command = 0
-            
-            if next_command == RoadOption.LANEFOLLOW:
-                next_command = 3
-            elif next_command == RoadOption.STRAIGHT:
-                next_command = 2
-            elif next_command == RoadOption.RIGHT:
-                next_command = 1
-            else:
-                next_command = 0
 
         #image type is numpy array
         obs = {
@@ -508,80 +516,159 @@ class CarlaEnv(gym.Env):
         }
 
         return obs
+    
+    def get_command(self, ego_loc):
+        """
+        Get the current command to obey
+
+        :param ego_loc: location of ego vehicle
+        :return: command, next command in integer representation
+        """
+        if len(self.plan) == 1: # if the plan only has STOP, command is 2 (lane_follow) and next_command is 3 (None)
+            command =  2
+            next_command = 3
+        
+        else: # plan contains at least two commands
+            current_objective = self.plan[0] # (location, command)
+            next_objective = self.plan[1] 
+            euclidean_dist = ego_loc.distance(next_objective[0]) # compare next plan location to ego location to see if need to switch command
+            
+            if euclidean_dist < 2: # close to next command, so finish current command
+                command = next_objective[1] # command is now next item on list
+                self.plan.pop(0) # remove current command from plan
+                
+                if len(self.plan) == 1: # if plan now only has one command, next command is None
+                    next_command = 5
+                else: # if plan still has at least two commands, next_command is next command on list
+                    next_objective = self.plan[1] 
+                    next_command = next_objective[1]
+
+            else: # have not finished current part of plan, so plan list stays the same
+                command = current_objective[1]
+                next_command = next_objective[1]
+            
+            # convert command and next_command to integer representation for model
+            if command == RoadOption.LANEFOLLOW or command == RoadOption.STRAIGHT:
+                command = 2
+            elif command == RoadOption.RIGHT:
+                command = 1
+            else:
+                command = 0
+            
+            if next_command == RoadOption.LANEFOLLOW or next_command == RoadOption.STRAIGHT:
+                next_command = 2
+            elif next_command == RoadOption.RIGHT:
+                next_command = 1
+            else:
+                next_command = 0
+
+        return command, next_command
+
+    """
+    def get_reward(self, obs):
+        vehicle_state = obs['vehicle_state']
+        current_command = obs['command'] #does the car steer according to the command? 
+        #print("command: ", current_command)
+        next_command = obs['next_command'] #does the car steer according to the command? 
+        #print("next_command: ", next_command)
+        ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
+        steer = self.ego.get_control().steer
+        r = 0  # current reward is 0     
+
+        if ego_waypoint != None: #check if lane change is legal
+            right_lane_change = self.legal_lane_change(ego_waypoint, 0) 
+            left_lane_change = self.legal_lane_change(ego_waypoint, 1)
+        
+        else:
+            right_lane_change = False
+            left_lane_change = False
+
+        r_collision = 0
+        if len(self.collision_hist) != 0:
+            print("collision has occurred")
+            r_collision = -1
+            r = r + r_collision
+
+        # reward functions for different agents: lanefollowing agent, right turn agent, or left turn agent
+        if current_command == 3: #lanefollow. Will affect lane_following agent
+            self.steps_since_turn = 0
+            
+            if next_command == 0 or next_command == 1: # if next command is right or left and you can make a lane change, do it
+                if right_lane_change and next_command == 1:
+                    r = self.steer_threshold_reward(steer, .4, r)
+                    # r = self.lane_threshold_reward(vehicle_state[0], r) need to alter for lane changing
+                
+                elif left_lane_change and next_command == 0:
+                    r = self.steer_threshold_reward(steer, -.4, r)
+                    # r = self.lane_threshold_reward(vehicle_state[0], r)
+
+            else: #either a lane change is not possible now or dont have upcoming turn
+                r = self.steer_threshold_reward(steer, 0, r)
+                r = self.lane_threshold_reward(vehicle_state[0], r)
+
+        elif current_command == 1: # go right. Will affect right turn agent
+            self.steps_since_turn = self.steps_since_turn + 1
+            # reward for steering:
+            r = self.steer_threshold_reward(steer, .8, r)
+            #print("lateral distance: ", (vehicle_state[0]))
+
+        else: # go left. Will affect left turn agent
+            self.steps_since_turn = self.steps_since_turn + 1
+            # reward for steering:
+            r = self.steer_threshold_reward(steer, -.7, r)
+            #print("lateral distance: ", (vehicle_state[0]))
+    
+        #print("reward for step is: ", r)
+        return r
+    """
 
     def get_reward(self, obs):
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command? 
+        next_command = obs['next_command'] #does the car steer according to the command? 
         ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
         steer = self.ego.get_control().steer
-        r = 0       
+        r = 0  # current reward is 0     
 
-        if ego_waypoint != None:
-            right_lane_change = self.legal_lane_change(ego_waypoint, 0) #True or false for if lane change to right is legal
-            left_lane_change = self.legal_lane_change(ego_waypoint, 1)
-        else:
-            right_lane_change = False
-            left_lane_change = True
-
-        #rewards regardless of command: collision, crossing over solid lane marking
         r_collision = 0
         if len(self.collision_hist) != 0:
             print("collision has occurred")
-            r_collision = -3
+            r_collision = -1
             r = r + r_collision
-        if not right_lane_change: # punish for steering right if illegal
-            r = self.steer_threshold_reward(steer, -1.1, .1, r, .5)
 
-        if not left_lane_change: # punish for steering left if illegal
-            r = self.steer_threshold_reward(steer, -.1, 1.1, r, .5)
-         
-        if current_command == 4: #coming towards goal, command is stop
+        # reward functions for different agents: lanefollowing agent, right turn agent, or left turn agent
+        if current_command == 3: #lanefollow. Will affect lane_following agent
+            self.steps_since_turn = 0
+            r = self.steer_threshold_reward(steer, 0, r)
             r = self.lane_threshold_reward(vehicle_state[0], r)
 
-        if current_command == 3: #lanefollow
-            
-            next_objective = [None, None]
-            if len(self.plan) > 1:
-                next_objective = self.plan[1] 
-   
-            # if next command is right or left and you can make a lane change, do it
-            if len(self.plan) > 1 and (next_objective[1] == RoadOption.LEFT or next_objective[1] == RoadOption.RIGHT):
-              #print("have an upcoming turn: ", next_objective[1])
-              if right_lane_change and next_objective[1] == RoadOption.RIGHT:
-                  r = self.steer_threshold_reward(steer, .1, .7, r, 1)
+        elif current_command == 1: # go right. Will affect right turn agent
+            self.steps_since_turn = self.steps_since_turn + 1
+            r = self.steer_threshold_reward(steer, .7, r)
+            r = self.lane_threshold_reward(vehicle_state[0], r)
 
-              elif left_lane_change and next_objective[1] == RoadOption.LEFT:
-                  r = self.steer_threshold_reward(steer, -.7, -.1, r, 1)
-
-            else: #either our speed is fine or a lane change is not possible now (or dont have upcoming turn)
-                # reward for out of lane 
-                r = self.lane_threshold_reward(vehicle_state[0], r)
-
-
-        elif current_command == 2: #go straight through junction
-            # reward for out of lane
-            #r = self.lane_threshold_reward(vehicle_state[0], r)
-
-            #penalize for steering left or right
-            r = self.steer_threshold_reward(steer, -.07, .07, r, 1)
-
-        elif current_command == 1: # go right 
+        else: # go left. Will affect left turn agent
+            self.steps_since_turn = self.steps_since_turn + 1
             # reward for steering:
-            r = self.steer_threshold_reward(steer, .1, .7, r, 1)
-
-        else: # go left
-            # reward for steering:
-            r = self.steer_threshold_reward(steer, -.7, -.1, r, 1)
+            r = self.steer_threshold_reward(steer, -.6, r)
+            r = self.lane_threshold_reward(vehicle_state[0], r)
     
-        print("reward for step is: ", r)
         return r
+
     
     def legal_lane_change(self, waypoint, direction):
+        """
+        Check if a right or left lane change is legal.
+        
+        :param waypoint: waypoint object of location to check
+        :param direction: which lane change direction to check
+
+        :return: True or False depending on lane type.
+        """
         if direction == 0: #check right
             right_lane = waypoint.right_lane_marking
             if str(right_lane.type) == "Broken" or str(right_lane.type) == "NONE": 
                 return True
-                #print("can make right lane change")
             else:
                 return False
             
@@ -589,29 +676,36 @@ class CarlaEnv(gym.Env):
             left_lane = waypoint.left_lane_marking
             if str(left_lane.type) == "Broken" or str(left_lane.type) == "NONE": 
                 return True
-                #print("can make left lane change")
             else:
                 return False
-
-
+            
     def lane_threshold_reward(self, lateral_distance, current_reward):
+        """
+        Calculate lane threshold reward
+        
+        :param lateral_distance: lateral distance from waypoints
+        :param current_reward: current reward in reward function
+
+        :return: Reward for lane following
+        """
         dis = abs(lateral_distance)
         dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
         current_reward = current_reward + 1 + dis
-        print("lane_threshold_reward: ", 1+ dis)
         return current_reward
-
     
-    def steer_threshold_reward(self, steer, val_1, val_2, current_reward, to_add):
-        if steer > val_1 and steer < val_2:
-            current_reward = current_reward + to_add
-            print("steer in threshold")
-        else:
-            current_reward = current_reward - to_add
-            print("steer not in threshold")
+    def steer_threshold_reward(self, steer, target_steer, current_reward):
+        """
+        Calculate steer threshold reward
         
-        return current_reward
+        :param steer: current steer of vehicle
+        :param target_steer: target steer of vehicle
+        :param current_reward: current reward in reward function
 
+        :return: Reward for steering
+        """
+        r_steer = 1 - abs(steer - target_steer)
+        
+        return current_reward + r_steer
 
     def is_done(self, obs):
 
@@ -629,6 +723,23 @@ class CarlaEnv(gym.Env):
         euclidean_dist = ego_loc.distance(goal_loc)
         if euclidean_dist <= 4:
             return True
+        
+        #if lane_following and dis is too high
+        current_command = obs['command']
+        if current_command == 2:
+            vehicle_state = obs['vehicle_state']
+            dis = abs(vehicle_state[0])
+            if dis >= 2:
+                return True
+            
+        # if missing turn
+        if current_command == 0 or current_command ==1:
+            if self.steps_since_turn >= 65 and (self.ego.get_control().steer > -.25 and self.ego.get_control().steer < .25):
+                return True
+            vehicle_state = obs['vehicle_state']
+            dis = abs(vehicle_state[0])
+            if dis >= 1:
+                return True
         
         return False
     

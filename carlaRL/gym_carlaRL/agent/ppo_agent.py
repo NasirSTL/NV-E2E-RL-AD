@@ -292,28 +292,6 @@ class Critic(nn.Module):
             nn.Linear(10, 1),
         )
 
-        """
-        self.fc_layers = nn.Sequential(
-            nn.Linear(1600, 512),
-            nn.PReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, 128),
-            nn.PReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 10),
-            nn.PReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(10, 1),
-        )
-        """
-
-
-
-        # self.model = nn.Sequential(
-        #     self.conv_layers,
-        #     self.fc_layers,
-        # )
-        # self.model.apply(weights_init)
         self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward(self, command, next_command, image):
