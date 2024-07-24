@@ -439,18 +439,21 @@ class CarlaEnv(gym.Env):
         ego_yaw = ego_trans.rotation.yaw/180*np.pi
         
         command, next_command = self.get_command(ego_trans.location)
-        print("command: ", command)
+        #print("command: ", command)
         if command == 2:
             lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+            delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         else:
             if len(self.plan) == 1:
                 lateral_dis = 0
+                w=0
+                delta_yaw = 0
             else:
                 intersection_waypoints = self.get_intersection_waypoints(ego_trans.location, self.plan[1][0])
                 lateral_dis, w = get_lane_dis(intersection_waypoints, ego_x, ego_y)
-        print("lat dis: ", lateral_dis)
-        delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
+                delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
 
+        #print("lat dis: ", lateral_dis)
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
 
         obs = {}

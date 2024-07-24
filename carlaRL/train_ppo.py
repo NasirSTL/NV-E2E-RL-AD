@@ -197,8 +197,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_episodes', type=int, default=5000, help='Maximum number of episodes to train')
     parser.add_argument('--steps', type=int, default=600, help='Maximum number of steps per episode')
     parser.add_argument('--saving_model', type=bool, default=True, help='Whether to save the model')
-    parser.add_argument('--load_model', type=str, default=None, help='Pre-trained model to load')
-    parser.add_argument('--display', type=bool, default=True, help='Whether to display the pygame window')
+    parser.add_argument('--load_model', type=str, default='C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=422_r=573.pth', help='Pre-trained model to load')
+    parser.add_argument('--display', type=bool, default=False, help='Whether to display the pygame window')
     parser.add_argument('--curriculum', type=bool, default=True, help='Whether to use curriculum learning')
 
     args = parser.parse_args()
