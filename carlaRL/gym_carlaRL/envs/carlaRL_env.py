@@ -439,8 +439,8 @@ class CarlaEnv(gym.Env):
         ego_yaw = ego_trans.rotation.yaw/180*np.pi
         
         command, next_command = self.get_command(ego_trans.location)
-        #print("command: ", command)
-        if command == 2:
+
+        if command == 1:
             lateral_dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
             delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
         else:
@@ -453,7 +453,6 @@ class CarlaEnv(gym.Env):
                 lateral_dis, w = get_lane_dis(intersection_waypoints, ego_x, ego_y)
                 delta_yaw = np.arcsin(np.cross(w, np.array(np.array([np.cos(ego_yaw), np.sin(ego_yaw)]))))
 
-        #print("lat dis: ", lateral_dis)
         v_state = np.array([lateral_dis, - delta_yaw, ego_x, ego_y, ego_z])
 
         obs = {}
@@ -464,9 +463,9 @@ class CarlaEnv(gym.Env):
             if self.params['model'] == 'lanenet':
                 image = self.process_image(self.image_windshield)
                 # change which model depending on command
-                if command == 2:
-                    img = self.lane_detector(image)
                 if command == 1:
+                    img = self.lane_detector(image)
+                if command == 2:
                     img = self.right_lane_detector(image)
                 else:
                     img = self.left_lane_detector(image)
@@ -528,7 +527,7 @@ class CarlaEnv(gym.Env):
         :return: command, next command in integer representation
         """
         if len(self.plan) == 1: # if the plan only has STOP, command is 2 (lane_follow) and next_command is 3 (None)
-            command =  2
+            command =  1
             next_command = 3
         
         else: # plan contains at least two commands
@@ -541,7 +540,7 @@ class CarlaEnv(gym.Env):
                 self.plan.pop(0) # remove current command from plan
                 
                 if len(self.plan) == 1: # if plan now only has one command, next command is None
-                    next_command = 5
+                    next_command = 3
                 else: # if plan still has at least two commands, next_command is next command on list
                     next_objective = self.plan[1] 
                     next_command = next_objective[1]
@@ -552,110 +551,69 @@ class CarlaEnv(gym.Env):
             
             # convert command and next_command to integer representation for model
             if command == RoadOption.LANEFOLLOW or command == RoadOption.STRAIGHT:
-                command = 2
-            elif command == RoadOption.RIGHT:
                 command = 1
+            elif command == RoadOption.RIGHT:
+                command = 2
             else:
                 command = 0
             
             if next_command == RoadOption.LANEFOLLOW or next_command == RoadOption.STRAIGHT:
-                next_command = 2
-            elif next_command == RoadOption.RIGHT:
                 next_command = 1
+            elif next_command == RoadOption.RIGHT:
+                next_command = 2
             else:
                 next_command = 0
 
         return command, next_command
 
-    """
-    def get_reward(self, obs):
-        vehicle_state = obs['vehicle_state']
-        current_command = obs['command'] #does the car steer according to the command? 
-        #print("command: ", current_command)
-        next_command = obs['next_command'] #does the car steer according to the command? 
-        #print("next_command: ", next_command)
-        ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
-        steer = self.ego.get_control().steer
-        r = 0  # current reward is 0     
-
-        if ego_waypoint != None: #check if lane change is legal
-            right_lane_change = self.legal_lane_change(ego_waypoint, 0) 
-            left_lane_change = self.legal_lane_change(ego_waypoint, 1)
-        
-        else:
-            right_lane_change = False
-            left_lane_change = False
-
-        r_collision = 0
-        if len(self.collision_hist) != 0:
-            print("collision has occurred")
-            r_collision = -1
-            r = r + r_collision
-
-        # reward functions for different agents: lanefollowing agent, right turn agent, or left turn agent
-        if current_command == 3: #lanefollow. Will affect lane_following agent
-            self.steps_since_turn = 0
-            
-            if next_command == 0 or next_command == 1: # if next command is right or left and you can make a lane change, do it
-                if right_lane_change and next_command == 1:
-                    r = self.steer_threshold_reward(steer, .4, r)
-                    # r = self.lane_threshold_reward(vehicle_state[0], r) need to alter for lane changing
-                
-                elif left_lane_change and next_command == 0:
-                    r = self.steer_threshold_reward(steer, -.4, r)
-                    # r = self.lane_threshold_reward(vehicle_state[0], r)
-
-            else: #either a lane change is not possible now or dont have upcoming turn
-                r = self.steer_threshold_reward(steer, 0, r)
-                r = self.lane_threshold_reward(vehicle_state[0], r)
-
-        elif current_command == 1: # go right. Will affect right turn agent
-            self.steps_since_turn = self.steps_since_turn + 1
-            # reward for steering:
-            r = self.steer_threshold_reward(steer, .8, r)
-            #print("lateral distance: ", (vehicle_state[0]))
-
-        else: # go left. Will affect left turn agent
-            self.steps_since_turn = self.steps_since_turn + 1
-            # reward for steering:
-            r = self.steer_threshold_reward(steer, -.7, r)
-            #print("lateral distance: ", (vehicle_state[0]))
-    
-        #print("reward for step is: ", r)
-        return r
-    """
 
     def get_reward(self, obs):
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command? 
-        next_command = obs['next_command'] #does the car steer according to the command? 
-        ego_waypoint = self.map.get_waypoint(self.ego.get_location()) #check to see which ways we can lane change
         steer = self.ego.get_control().steer
         r = 0  # current reward is 0     
 
         r_collision = 0
         if len(self.collision_hist) != 0:
-            print("collision has occurred")
+            #print("collision has occurred")
             r_collision = -1
             r = r + r_collision
 
         # reward functions for different agents: lanefollowing agent, right turn agent, or left turn agent
-        if current_command == 3: #lanefollow. Will affect lane_following agent
+        if current_command == 1: #lanefollow. Will affect lane_following agent
             self.steps_since_turn = 0
             r = self.steer_threshold_reward(steer, 0, r)
+            if math.isnan(r):
+                print("steer reward is nan")
             r = self.lane_threshold_reward(vehicle_state[0], r)
+            if math.isnan(r):
+                print("lane reward is nan")
 
-        elif current_command == 1: # go right. Will affect right turn agent
+        elif current_command == 2: # go right. Will affect right turn agent
             self.steps_since_turn = self.steps_since_turn + 1
-            r = self.steer_threshold_reward(steer, .7, r)
+            #print("must turn right")
+            #print("steer: ", steer)
+            r = self.steer_threshold_reward(steer, .9, r)
+            if math.isnan(r):
+                print("steer reward is nan")
             r = self.lane_threshold_reward(vehicle_state[0], r)
+            if math.isnan(r):
+                print("lane reward is nan")
 
         else: # go left. Will affect left turn agent
             self.steps_since_turn = self.steps_since_turn + 1
-            # reward for steering:
-            r = self.steer_threshold_reward(steer, -.6, r)
+            #print("must turn left")
+            #print("steer: ", steer)
+            r = self.steer_threshold_reward(steer, -.9, r)
+            if math.isnan(r):
+                print("steer reward is nan")
             r = self.lane_threshold_reward(vehicle_state[0], r)
-    
+            if math.isnan(r):
+                print("lane reward is nan")
+
+        
+        if math.isnan(r):
+            print("reward is nan")
         return r
 
     
@@ -691,8 +649,12 @@ class CarlaEnv(gym.Env):
 
         :return: Reward for lane following
         """
+        if math.isnan(lateral_distance):
+            print("distance is nan")
         dis = abs(lateral_distance)
         dis = -(dis / self.params['out_lane_thres'])  # normalize the lateral distance
+        if math.isnan(lateral_distance):
+            print("dis is nan")
         current_reward = current_reward + 1 + dis
         return current_reward
     
@@ -706,7 +668,7 @@ class CarlaEnv(gym.Env):
 
         :return: Reward for steering
         """
-        r_steer = 1 - abs(steer - target_steer)
+        r_steer = (1 - abs(steer - target_steer))
         
         return current_reward + r_steer
 
@@ -732,17 +694,31 @@ class CarlaEnv(gym.Env):
         if current_command == 2:
             vehicle_state = obs['vehicle_state']
             dis = abs(vehicle_state[0])
-            if dis >= 2:
+            if dis >= 1.5:
                 return True
             
         # if missing turn
-        if current_command == 0 or current_command ==1:
-            if self.steps_since_turn >= 65 and (self.ego.get_control().steer > -.25 and self.ego.get_control().steer < .25):
-                return True
-            vehicle_state = obs['vehicle_state']
-            dis = abs(vehicle_state[0])
-            if dis >= 1:
-                return True
+        if current_command == 0:
+            steer = self.ego.get_control().steer
+            if self.steps_since_turn >= 40:
+                #print("many steps since command")
+                if (steer > -.1):
+                    #print("not turning left")
+                    #print("steer: ", steer)
+                    return True
+                else:
+                    self.steps_since_turn = 0
+            
+        if current_command ==2:
+            steer = self.ego.get_control().steer
+            if self.steps_since_turn >= 40:
+                #print("many steps since command")
+                if (steer < .1):
+                    #print("not turning right")
+                    #print("steer: ", steer)
+                    return True
+                else:
+                    self.steps_since_turn = 0
         
         return False
     

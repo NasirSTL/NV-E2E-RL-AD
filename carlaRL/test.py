@@ -34,6 +34,8 @@ def main():
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
         'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
+        'left_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/left_turn_model/loss=0.4402_miou=0.3000_epoch=100.pth',
+        'right_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/right_turn_model/loss=0.4759_miou=0.2905_epoch=234.pth',
         'record_interval': 10,  # The interval in which to record the episode
         'collect': True,  # Whether to collect the data
     }
@@ -43,7 +45,7 @@ def main():
 
     # Create an instance of the agent
     ppoAgent = ActorCritic().to(DEVICE)
-    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=5512_r=1076.pth'
+    model_path = 'C:/carla/WindowsNoEditor/PythonAPI/log/ppo/imgOnly/f1tenth/ufld/0/random_epi=1620_r=1139.pth'
     ppoAgent.load_state_dict(torch.load(model_path))
     
     ppoAgent.eval()
@@ -58,7 +60,7 @@ def main():
         done = False
         for s in range(params['max_time_episode']):
             with torch.no_grad():
-                action, _, _ = ppoAgent(state['actor_input'], state['command'], state['next_command'])
+                action, _, _ = ppoAgent(state['actor_input'], state['command'])
                 # action = controller(state['actor_img'])
             action_to_perform = action.item()
             pos = state['vehicle_state'][-3:]
