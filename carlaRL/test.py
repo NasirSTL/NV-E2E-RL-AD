@@ -60,7 +60,7 @@ def main():
         done = False
         for s in range(params['max_time_episode']):
             with torch.no_grad():
-                action, _, _ = ppoAgent(state['actor_input'], state['command'])
+                action, _, _ = ppoAgent(state['actor_input'], state['command'], state['next_command'])
                 # action = controller(state['actor_img'])
             action_to_perform = action.item()
             pos = state['vehicle_state'][-3:]

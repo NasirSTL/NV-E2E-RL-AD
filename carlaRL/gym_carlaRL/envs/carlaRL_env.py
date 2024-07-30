@@ -548,8 +548,10 @@ class CarlaEnv(gym.Env):
     def get_reward(self, obs):
         vehicle_state = obs['vehicle_state']
         current_command = obs['command'] #does the car steer according to the command? 
+        next_command = obs['next_command']
         steer = self.ego.get_control().steer
         r = 0  # current reward is 0     
+
 
         r_collision = 0
         if len(self.collision_hist) != 0: #negative reward for collision
@@ -559,8 +561,23 @@ class CarlaEnv(gym.Env):
         # reward functions for different agents: lanefollowing agent, right turn agent, or left turn agent
         if current_command == 1: #lanefollow
             self.steps_since_turn = 0
-            r = self.steer_threshold_reward(steer, 0, r)
-            r = self.lane_threshold_reward(vehicle_state[0], r)
+            if next_command != 1:
+                r = self.steer_threshold_reward(steer, 0, r)
+                r = self.lane_threshold_reward(vehicle_state[0], r)
+            else: #if next command is a turn, encourage model to change lanes if possible and legal
+                location = self.ego.get_transform().location
+                waypoint = self.map.get_waypoint(location)
+                if next_command == 0:
+                    left_lane_change = self.legal_lane_change(waypoint, 1)
+                    if left_lane_change:
+                        r = self.steer_threshold_reward(steer, -.2, r)
+                        r = self.lane_threshold_reward(waypoint.get_left_lane(), r) #generate lateral distance from center of left lane
+
+                if next_command == 2:
+                    right_lane_change = self.legal_lane_change(waypoint, 0)
+                    if right_lane_change:
+                        r = self.steer_threshold_reward(steer, .2, r)
+                        r = self.lane_threshold_reward(waypoint.get_right_lane(), r) #generate lateral distance from center of right lane
 
         elif current_command == 2: # go right
             self.steps_since_turn = self.steps_since_turn + 1
