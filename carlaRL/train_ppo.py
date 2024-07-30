@@ -99,7 +99,7 @@ def main(args):
                     print("found nan. ending early.")
                     break
 
-                action, value, logp = agent(state['actor_input'], state['command'], state['next_command']) #add command to the state
+                action, value, logp = agent(state['actor_input'], state['command']) #add command to the state
 
                 action = action.item()
                 next_state, reward, done, info = env.step(action)
