@@ -76,7 +76,7 @@ class ImageProcessor():
             min_val = np.min(avg_img)
             max_val = np.max(avg_img)
             
-            if (max_val-min_val) == 0:
+            if (max_val-min_val) == 0: #fail safe for nan in ImageProcessor
                 print("Divide by 0 detected in ImageProcessor. Doing alternate normalization.")
                 if min_val < 0 or max_val > 1:
                     img = np.where(avg_img <= 0, 0, 1)

@@ -120,7 +120,7 @@ def get_lane_dis(waypoints, x, y):
   :return: a tuple of the distance and the closest waypoint orientation
   """
   
-  if len(waypoints) == 1:
+  if len(waypoints) == 1: #get "center lane" distance for intersections
     waypt = waypoints[0]
     w_loc = waypt.transform.location
     dis_min = np.sqrt((x-w_loc.x)**2 + (y-w_loc.y)**2)

@@ -37,7 +37,7 @@ def main(args):
     params = {
         'host': 'localhost',  # '104.51.58.17',
         'port': args.port,  # The port where your CARLA server is running
-        'town': 'Town05',  # The map to use
+        'town': 'Town05',  # The map to use. This map has more intersections
         'mode': 'train_controller',  # The mode to run the environment in: train is for RL algorithms only
         'algo' : 'ppo',  # this decides how the image is processed
         'controller_version': 3,  # The version of the controller to use
@@ -54,9 +54,9 @@ def main(args):
         'weather': 6,  # Weather preset (6 is sunny)
         'fps_sim': 20,  # Simulation FPS
         'model': 'lanenet',  # Lane detection model to use
-        'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to the lane detection model
-        'left_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/left_turn_model/loss=0.4402_miou=0.3000_epoch=100.pth',
-        'right_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/right_turn_model/loss=0.4759_miou=0.2905_epoch=234.pth',
+        'model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/loss=0.1223_miou=0.5764_epoch=73.pth',  # Path to lanefollowing lane detection model
+        'left_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/left_turn_model/loss=0.4402_miou=0.3000_epoch=100.pth', # Path to left turn lane detection model
+        'right_model_path': 'C:/carla/WindowsNoEditor/PythonAPI/v-e2e-rl-ad/carlaRL/gym_carlaRL/envs/lanenet_lane_detection_pytorch/log/right_turn_model/loss=0.4759_miou=0.2905_epoch=234.pth', # Path to right turn lane detection model
         'record_interval': 10,  # The interval in which to record the episode
         'restriction': 40 if args.curriculum else STEPS, 
         'collect': False,
@@ -94,12 +94,12 @@ def main(args):
 
         with tqdm(total=STEPS, desc=f"Episode {episode + 1}/{EPISODES}", leave=True) as pbar:
             for step in range(STEPS):
-                if np.isnan(state['actor_input']).any():
+                if np.isnan(state['actor_input']).any(): #fail safe for nan in lane detector image
                     end_early = True
                     print("found nan. ending early.")
                     break
 
-                action, value, logp = agent(state['actor_input'], state['command'])
+                action, value, logp = agent(state['actor_input'], state['command']) #add command to the state
 
                 action = action.item()
                 next_state, reward, done, info = env.step(action)
@@ -161,7 +161,7 @@ def main(args):
             policy_mean = agent.pi.mu.detach().cpu().numpy()[0].item()
             policy_std = torch.exp(agent.pi.log_std).item()
             print(f'policy mean: {policy_mean:.3f}; policy std: {policy_std:.5f} \n episode losses: policy_loss: {np.mean(policy_losses):.4f}, value_loss: {np.mean(value_losses):.4f} \n')
-            #blockPrint()
+            blockPrint()
 
         agent.memory.clear()
 
