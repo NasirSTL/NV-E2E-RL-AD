@@ -532,14 +532,14 @@ class CarlaEnv(gym.Env):
                 command = 1
             elif command == RoadOption.RIGHT:
                 command = 2
-            else:
+            else: #if command is left
                 command = 0
             
             if next_command == RoadOption.LANEFOLLOW:
                 next_command = 1
             elif next_command == RoadOption.RIGHT:
                 next_command = 2
-            else:
+            else: #if command is left
                 next_command = 0
 
         return command, next_command
@@ -586,14 +586,14 @@ class CarlaEnv(gym.Env):
         """
         if direction == 0: #check if right lane change is legal
             right_lane = waypoint.right_lane_marking
-            if str(right_lane.type) == "Broken" or str(right_lane.type) == "NONE": 
+            if str(right_lane.type) == "Broken": 
                 return True
             else:
                 return False
             
         else: #check if left lane change is legal
             left_lane = waypoint.left_lane_marking
-            if str(left_lane.type) == "Broken" or str(left_lane.type) == "NONE": 
+            if str(left_lane.type) == "Broken": 
                 return True
             else:
                 return False
@@ -623,7 +623,7 @@ class CarlaEnv(gym.Env):
 
         :return: Reward for steering
         """
-        r_steer = (1 - abs(steer - target_steer)) #should be automatically normalized
+        r_steer = (1 - abs(steer - target_steer)) #[-1,1]
         
         return current_reward + r_steer
 
